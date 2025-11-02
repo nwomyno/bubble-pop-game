@@ -19,6 +19,7 @@ import pygame
 pygame.init()
 
 # ======== 전역 설정 ========
+# ======== MVP 7 ✅: 해상도 1920 x 1080p ========
 # 화면 설정
 SCREEN_WIDTH=1920
     # 화면 너비
@@ -26,6 +27,7 @@ SCREEN_HEIGHT=1080
     # 화면 높이
 FPS=60
     # 프레임 레이트
+# ======== MVP 7 ✅: 해상도 1920 x 1080p ========
 
 # 게임 오브젝트 크기 설정
 CELL_SIZE=64
@@ -35,12 +37,15 @@ BUBBLE_RADIUS=24
 BUBBLE_SPEED=14
     # 버블 발사 속도
 
+# ======== MVP 6 ✅: 발사 후 떨어지는 버블 4발 ========
 # 게임 규칙
 LAUNCH_COOLDOWN=4
     # 4발 쏘면 벽 한 칸 하강함.
 WALL_DROP_PIXELS=CELL_SIZE
     # 벽 하강 픽셀 수
+# ======== MVP 6 ✅: 발사 후 떨어지는 버블 4발 ========
 
+# ======== MVP 1 ✅: 버블 색깔 4개 ========
 # 버블 색상 정의 (네 가지)
 COLORS={
     'R':(220,50,50),
@@ -52,6 +57,7 @@ COLORS={
     'G':(70,200,120),
         # 초록
 }
+# ======== MVP 1 ✅: 버블 색깔 4개 ========
 
 # 맵 크기
 MAP_ROWS=12
@@ -59,6 +65,7 @@ MAP_ROWS=12
 MAP_COLS=16
     # 격자 열 수
 
+# ======== MVP 4 ✅: 스테이지 기본 3개 ========
 # 맵 데이터 3개 임의로 설정
 STAGES=[
     """ R, Y, G, ...: 각 색상의 앞글자를 가리킴. """
@@ -108,6 +115,7 @@ STAGES=[
         list("................"),
     ],
 ]
+# ======== MVP 4 ✅: 스테이지 기본 3개 ========
 
 # ======== 유틸리티 함수 정의 ========
 def clamp(value, min_value, max_value):
@@ -179,10 +187,12 @@ class Cannon:
         self.angle_speed=2.0
             # 회전 속도
 
+# ======== MVP 5 ✅: 조작 방법 - 키보드 좌우, 스페이스바 ========
     # 키보드 입력으로 각도 조정함.
     def rotate(self,delta):
         # TODO: 각도 증감하고 나서 범위 제한하기 (clamp 사용해서)
         pass
+# ======== MVP 5 ✅: 조작 방법 - 키보드 좌우, 스페이스바 ========
 
     # 발사대 조준선 그리는 역할.
     def draw(self,screen):
@@ -213,11 +223,13 @@ class HexGrid:
         # TODO: 각 버블에 격자 인덱스 할당하기.
         pass
 
+# ======== MVP 3 ✅: 버블 배열 - 육각형 ========
     # 육각 격자의 중심 좌표를 계산함.
     def get_cell_center(self,row,col):
         # TODO: 짝수, 홀수 행에 따라서 다른 오프셋을 적용하기.
         # TODO: x, y 좌표 반환하기.
         pass
+# ======== MVP 3 ✅: 버블 배열 - 육각형 ========
 
     # 화면 좌표를 격자 인덱스로 바꿈.
     def screen_to_grid(self,x,y):
@@ -246,11 +258,13 @@ class HexGrid:
         # TODO: 짝수, 홀수 행에 따라서 다른 이웃 배열 반환하기.
         pass
 
+# ======== MVP 2 ✅: 터트리는 조건: 3개 이상 인접 ========
     # 같은 색깔 버블을 DFS 탐색함.
     def dfs_same_color(self,row,col,color,visited):
         # TODO: 재귀적으로 같은 색깔 버블 찾기.
         # TODO: `visited` 집합에 좌표 추가하기.
         pass
+# ======== MVP 2 ✅: 터트리는 조건: 3개 이상 인접 ========
 
     # 특정 셀 제거함.
     def remove_cells(self,cells):
@@ -280,11 +294,13 @@ class HexGrid:
         # TODO: bubble_list에 들어있는 모든 버블 draw() 호출하기.
         pass
 
+# ======== MVP 6 ✅: 발사 후 떨어지는 버블 4발 ========
     # 벽 하강시킴. (4발 발사한 뒤)
     def drop_wall(self):
         # TODO: wall_offset 증가시키기.
         # TODO: 모든 버블 위치 재계산하기.
         pass
+# ======== MVP 6 ✅: 발사 후 떨어지는 버블 4발 ========
 
 # ======== ScoreDisplay 클래스 - 점수 표시 ========
 class ScoreDisplay:
@@ -309,11 +325,13 @@ class ScoreDisplay:
 class Game:
     """ 게임의 전체 로직을 관리하는 메인 클래스임. 초기화, 업데이트, 그리기, 이벤트 처리를 담당함. """
     def __init__(self):
+# ======== MVP 7 ✅: 해상도 1920 x 1080p ========
         # 화면 설정
         self.screen=pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
         pygame.display.set_caption("Bubble Pop MVP")
             # 게임 창의 제목 표시줄에 표시될 텍스트 설정
         self.clock=pygame.time.Clock()
+# ======== MVP 7 ✅: 해상도 1920 x 1080p ========
 
         # 게임 오브젝트 전부 초기화
         self.cannon=Cannon(SCREEN_WIDTH//2,SCREEN_HEIGHT-120)
@@ -369,13 +387,16 @@ class Game:
         # TODO: 충돌 시 place_bubble() 호출하기.
         pass
 
+# ======== MVP 2 ✅: 터트리는 조건: 3개 이상 인접 ========
     # 3개 이상 연결 시 터뜨림.
     def pop_if_match(self,row,col):
         # TODO: DFS로 같은 색깔 버블 찾기.
         # TODO: 3개 이상이면 제거하고 점수 추가하기.
         # TODO: 자유낙하 버블 제거하기.
         pass
+# ======== MVP 2 ✅: 터트리는 조건: 3개 이상 인접 ========
 
+# ======== MVP 5 ✅: 조작 방법 - 키보드 좌우, 스페이스바 ========
     # 게임 로직 업데이트함.
     def update(self):
         # TODO: 이벤트 처리하기. (키보드 입력)
@@ -383,6 +404,7 @@ class Game:
         # TODO: 4발마다 벽 하강시키기.
         # TODO: 스테이지 클리어, 게임 오버 체크하기.
         pass
+# ======== MVP 5 ✅: 조작 방법 - 키보드 좌우, 스페이스바 ========
 
     # 스테이지 클리어 여부 확인함.
     def is_stage_cleared(self):
