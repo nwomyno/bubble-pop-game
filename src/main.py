@@ -469,9 +469,9 @@ class Game:
             self.clock.tick(FPS)
                 # 프레임 속도 제한함.
             self.update()
-            for event in pygame.event.get():
-                if event.type==pygame.QUIT:
-                    self.running=False
+            # for event in pygame.event.get():
+            #     if event.type==pygame.QUIT:
+            #         self.running=False
             self.draw()
 
         # 종료 화면
