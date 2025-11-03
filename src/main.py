@@ -18,7 +18,6 @@ SCREEN_WIDTH=1920
 SCREEN_HEIGHT=1080
     # 화면 높이
 FPS=60
-    # 프레임 레이트
 
 # 게임 오브젝트 크기 설정
 CELL_SIZE=64
@@ -28,6 +27,7 @@ BUBBLE_RADIUS=24
 BUBBLE_SPEED=14
     # 버블 발사 속도
 
+# 발사 후 떨어지는 버블 수: 4발
 # 게임 규칙
 LAUNCH_COOLDOWN=4
     # 4발 쏘면 벽 한 칸 하강함.
@@ -52,7 +52,7 @@ MAP_ROWS=12
 MAP_COLS=16
     # 격자 열 수
 
-# 맵 데이터 3개 임의로 설정
+# 맵 데이터 1개만
 STAGES=[
     """ R, Y, G, ...: 각 색상의 앞글자를 가리킴. """
     # 스테이지 1: 초급 난이도
@@ -103,9 +103,9 @@ STAGES=[
 ]
 
 # ======== 유틸리티 함수 정의 ========
-def clamp(value, min_value, max_value):
+def clamp(v, lo, hi):
+    # PARAMETERS: value, min_value, max_value
     """ 값을 범위 내로 제한함. """
-    return max(min_value,min(max_value,value))
 
 # ======== 버블 클래스 - 버블 객체 ========
 class Bubble:
@@ -413,11 +413,8 @@ class Game:
         # TODO: 승리, 패배 메시지 표시하기.
         pass
 
-# ======== 메인 함수 ========
 def main():
-    """ 프로그램 진입점 """
-    game=Game()
-    game.run()
+    Game().run()
     pygame.quit()
     sys.exit()
 
