@@ -157,10 +157,28 @@ class Bubble:
 
     # 벽 반사 포함해서 발사된 버블 이동.
     def move(self):
+        """ 왼쪽, 오른쪽 벽 반사하는 로직,
+        입사각이랑 반사각이랑 같게끔 만드는 로직 사용. """
         # TODO: 각도를 라디안으로 변환하기.
         # TODO: cos, sin으로 이동 벡터 계산하기.
         # TODO: 좌우 벽 반사 처리하기. (각도 반전)
-        pass
+        rad=math.radians(self.angle_degree)
+        # 각도에 따라서 x,y 이동시키는 로직
+        dx=self.speed*math.cos(rad)
+        dy=-self.speed*math.sin(rad)
+        self.x+=dx
+        self.y+=dy
+
+        # 왼쪽 벽에 충돌하는 경우.
+        if self.x-self.radius<0:
+            self.x=self.radius
+                # 위치 보정: 벽 안쪽으로 되돌리는 로직
+            self.angle_degree=180-self.angle_degree
+                # 입사각, 반사각 같게 만들기 위해 반사각 계산하는 로직
+        # 오른쪽 벽에 충돌하는 경우.
+        elif self.x+self.radius>SCREEN_WIDTH:
+            self.x=SCREEN_WIDTH-self.radius
+            self.angle_degree=180-self.angle_degree
 
 # ======== Cannon 클래스: 발사대 ========
 class Cannon:
@@ -352,6 +370,7 @@ class Game:
         pygame.display.set_caption("Bubble Pop MVP")
             # 게임 창의 제목 표시줄에 표시될 텍스트 설정
         self.clock=pygame.time.Clock()
+            # 게임 프레임 속도 제어하는 로직 (Clock 객체 생성)
         self.grid=HexGrid(MAP_ROWS,MAP_COLS,CELL_SIZE,wall_offset=0)
         self.running=True
 
@@ -373,10 +392,11 @@ class Game:
             # 발사 횟수 (4발마다 벽 하강함)
         self.running=True
             # 게임 실행 여부
+        self.prepare_bubbles()
+            # 처음 버블 준비
 
-        # 스테이지 로드
+        # 스테이지 로드 (임시)
         # self.load_stage(self.current_stage)
-
         # 첫 번째 스테이지 로드
         self.grid.load_from_stage(STAGES[self.current_stage])
 
@@ -391,19 +411,44 @@ class Game:
     def random_color_from_map(self):
         # TODO: 맵을 순회하면서 존재하는 색깔 수집하기.
         # TODO: random.choice()로 선택하기.
-        pass
+        colors=set()
+            # 빈 집합 생성
+        for r in range(self.grid.rows):
+            for c in range(self.grid.cols):
+                ch=self.grid.map[r][c]
+                    # 색상 추출
+                if ch in COLORS:
+                    colors.add(ch)
+        # 맵에 버블이 없으면 모든 색깔 사용 가능하도록 설정함.
+        if not colors:
+            colors=set(COLORS.keys())
+        return random.choice(list(colors))
+
 
     # 새 버블 생성함.
     def create_bubble(self):
         # TODO: random_color_from_map()로 색깔 선택하기.
         # TODO: Bubble 인스턴스 생성하기.
-        pass
+        color=self.random_color_from_map()
+        b=Bubble(self.cannon.x,self.cannon.y,color)
+        return b
 
     # 현재, 다음 버블 준비함.
     def prepare_bubbles(self):
         # TODO: next_bubble을 current_bubble로 이동시키기.
         # TODO: 새로운 next_bubble 생성하기.
-        pass
+        if self.next_bubble is not None:
+            self.current_bubble=self.next_bubble
+                # 다음 버블을 현재 버블로 이동함.
+        else:
+            self.current_bubble=self.create_bubble()
+        self.current_bubble.x,self.current_bubble.y=self.cannon.x,self.cannon.y
+
+        self.current_bubble.in_air=False
+
+        self.next_bubble=self.create_bubble()
+
+
 
     # 충돌, 부착 처리함.
     def process_collision_and_attach(self):
@@ -437,7 +482,15 @@ class Game:
                 elif event.key==pygame.K_RIGHT:
                     self.cannon.rotate(-self.cannon.angle_speed)
                         # 오른쪽 키 입력하면 시계 방향으로 rotate
+                elif event.key==pygame.K_SPACE:
+                    if self.current_bubble and not self.fire_in_air:
+                        self.fire_in_air=True
+                        self.current_bubble.in_air=True
+                        self.current_bubble.set_angle(self.cannon.angle)
 
+        if self.current_bubble and self.fire_in_air:
+            self.current_bubble.move()
+                # 발사체 이동함.
 
     # 스테이지 클리어 여부 확인함.
     def is_stage_cleared(self):
@@ -460,6 +513,11 @@ class Game:
             # 격자 버블 그림.
         self.cannon.draw(self.screen)
             # cannon도 그림.
+
+        if self.current_bubble:
+            self.current_bubble.draw(self.screen)
+                # 현재 버블이면 현재 버블 그리기.
+
         pygame.display.flip()
             # 디스플레이 갱신함.
 
