@@ -277,29 +277,71 @@ class HexGrid:
     # 화면 좌표를 격자 인덱스로 바꿈.
     def screen_to_grid(self,x,y):
         # TODO: 픽셀 좌표를 행, 열 인덱스로 변환하기.
-        pass
+        r=int((y-self.wall_offset)//self.cell)
+        # r값이 음수 안되게 전처리
+        if r<0:
+            r=0
+        c=int(x//self.cell)
+
+        # 홀수 행은 육각형 배열이라 오른쪽으로 반칸 이동해있기 때문에 오프셋 보정하는 로직임.
+        if r%2==1:
+            c=int((x-self.cell//2)//self.cell)
+        c=clamp(c,0,self.cols-1)
+        r=clamp(r,0,self.rows-1)
+        return r,c
+
 
     # 버블을 격자에 배치함.
-    def place_bubble(self,bubble,row,col):
+    def place_bubble(self,bubble,r,c):
         # TODO: 맵에 색깔 기록하기.
         # TODO: 버블 위치 조정하고 리스트에 추가하기.
-        pass
+        if self.map[r][c]=='/':
+            c=clamp(c+1,0,self.cols-1)
+
+        self.map[r][c]=bubble.color
+        cx,cy=self.get_cell_center(r,c)
+        bubble.x,bubble.y=cx,cy
+        bubble.is_attached=True
+        bubble.in_air=False
+        bubble.set_grid_index(r,c)
+        self.bubble_list.append(bubble)
 
     # 충돌 지점 근처의 빈 격자를 찾음.
     def nearest_grid_to_point(self,x,y):
         # TODO: 충돌 지점의 격자 인덱스를 계산함.
         # TODO: 이웃 중 빈 칸을 찾음.
-        pass
+        r,c=self.screen_to_grid(x,y)
+            # input받은 좌표에서 가장 가까운 빈 격자 찾음.
+
+        # 이 위치에 이미 버블이 있거나 슬래시 문자가 있는 경우
+        if self.map[r][c] in COLORS or self.map[r][c]=='/':
+            neighbors=self.get_neighbors(r,c)
+            # 각 neighbor 순회하면서 빈칸 찾으면 바로 반환.
+            for nr,nc in neighbors:
+                if self.is_in_bounds(nr,nc) and self.map[nr][nc]=='.':
+                    return nr, nc
+        return r,c
 
     # 격자 범위를 체크함.
-    def is_in_bounds(self,row,col):
+    def is_in_bounds(self,r,c):
         # TODO: 행, 열이 맵 범위 내에 있는지 확인하기.
-        pass
+        return 0<=r<self.rows and 0<=c<self.cols
 
     # 육각 격자의 6개 이웃 좌표를 반환함.
-    def get_neighbors(self,row,col):
+    def get_neighbors(self,r,c):
         # TODO: 짝수, 홀수 행에 따라서 다른 이웃 배열 반환하기.
-        pass
+        # 짝수 행이면
+        if r%2==0:
+            dr=[0,-1,-1,0,1,1]
+                # 델타 row
+            dc=[-1,-1,0,1,0,-1]
+                # 델타 column
+        # 홀수 행이면
+        else:
+            dr=[0,-1,-1,0,1,1]
+            dc=[-1,0,1,1,1,0]
+        return [(r+dr[i],c+dc[i]) for i in range(6)]
+
 
     # 같은 색깔 버블을 DFS 탐색함.
     def dfs_same_color(self,row,col,color,visited):
@@ -455,7 +497,25 @@ class Game:
         # TODO: 천장 충돌 체크하기.
         # TODO: 기존 버블과 충돌 체크하기. (거리 계산)
         # TODO: 충돌 시 place_bubble() 호출하기.
-        pass
+        # 천장 충돌 로직:
+        if self.current_bubble.y-self.current_bubble.radius<=self.grid.wall_offset:
+            r,c=self.grid.nearest_grid_to_point(self.current_bubble.x,self.current_bubble.y)
+            self.grid.place_bubble(self.current_bubble,r,c)
+            return True
+
+        # 기존 버블과 충돌하게끔 함. (거리도 hypot으로 계산)
+        for b in self.grid.bubble_list:
+            dist=math.hypot(self.current_bubble.x-b.x,self.current_bubble.y-b.y)
+
+            # 겹치는 걸 방지하기 위해서 충돌을 더 일찍 감지하게끔.
+                # 여유 있게 값 2로 세팅.
+            if dist<=self.current_bubble.radius+b.radius-2:
+                r,c=self.grid.nearest_grid_to_point(self.current_bubble.x,self.current_bubble.y)
+
+                self.grid.place_bubble(self.current_bubble,r,c)
+                return True
+
+        return False
 
     # 3개 이상 연결 시 터뜨림.
     def pop_if_match(self,row,col):
@@ -491,6 +551,9 @@ class Game:
         if self.current_bubble and self.fire_in_air:
             self.current_bubble.move()
                 # 발사체 이동함.
+            if self.process_collision_and_attach():
+                self.fire_in_air=False
+                self.prepare_bubbles()
 
     # 스테이지 클리어 여부 확인함.
     def is_stage_cleared(self):
