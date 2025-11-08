@@ -265,11 +265,21 @@ class HexGrid:
 
     # 육각 격자의 중심 좌표를 계산함.
     def get_cell_center(self,r:int,c:int)->Tuple[int,int]:
-        """"""
+        """육각형 격자 배열의 중심 좌표 계산함.
+
+        육각형 배열은 지그재그 배열을 사용하기 때문에 이런 계산 로직을 사용함 → 육각 격자 체계의 핵심 로직
+
+        Args:
+            r (int): 행 인덱스
+            c (int): 열 인덱스
+
+        Returns:
+            Tuple[int,int]: (x,y) 중심 좌표
+        """
         # PARAMETERS: *r: row, *c: column
         # TODO: 짝수, 홀수 행에 따라서 다른 오프셋을 적용하기.
         # TODO: x, y 좌표 반환하기.
-        """ 육각형 배열은 지그재그 배열을 사용하기 때문에 이런 계산 로직을 사용함; 육각 격자 체계의 핵심 로직 """
+
         x=c*self.cell+self.cell//2
         y=r*self.cell+self.cell//2+self.wall_offset
         # 홀수 행은 오른쪽으로 반 칸 이동.
@@ -492,8 +502,10 @@ class HexGrid:
         self.wall_offset+=WALL_DROP_PIXELS
             # 오프셋 증가
 
+        # 모든 버블 위치 같이 내림.
         for b in self.bubble_list:
             cx,cy=self.get_cell_center(b.row_idx,b.col_idx)
+            b.x,b.y=cx,cy
 
 # ======== ScoreDisplay 클래스 - 점수 표시 ========
 class ScoreDisplay:
@@ -561,6 +573,10 @@ class Game:
         self.cannon:Cannon=Cannon(SCREEN_WIDTH//2,SCREEN_HEIGHT-120)
             # 화면 하단 중간에 배치해놓기.
 
+        # 게임 오버 라인 정의
+            # 발사대보다 1-2칸 위로 지정
+        self.game_over_line=self.cannon.y-CELL_SIZE*1.5
+
         self.score_ui:ScoreDisplay=ScoreDisplay()
             # 점수 UI 객체
 
@@ -588,10 +604,26 @@ class Game:
 
     # 스테이지 로드함.
     def load_stage(self,stage_index:int)->None:
+        """스테이지 로드함.
+
+        Args:
+            stage_index (int): 로드할 스테이지 인덱스
+        """
         # TODO: STAGES에서 맵 데이터 가져오기.
         # TODO: grid.load_from_stage() 호출하기.
         # TODO: 초기 버블 준비하기.
-        pass
+        stage_map=STAGES[stage_index]
+        self.grid.load_from_stage(stage_map)
+            # 맵 로드
+
+        # 초기화
+        self.current_bubble=None
+        self.next_bubble=None
+        self.fire_in_air=None
+        self.fire_count=0
+
+        self.prepare_bubbles()
+            # 초기 버블 준비.
 
     # 맵에 존재하는 색깔 중 랜덤 선택함.
     def random_color_from_map(self)->str:
@@ -725,7 +757,7 @@ class Game:
                         self.current_bubble.in_air=True
                         self.current_bubble.set_angle(self.cannon.angle)
 
-        # 발사체 이동할 때
+        # 발사체 이동.
         if self.current_bubble and self.fire_in_air:
             self.current_bubble.move()
             # 충돌 처리 로직
@@ -734,18 +766,59 @@ class Game:
                 rr,cc=self.current_bubble.row_idx,self.current_bubble.col_idx
                 self.pop_if_match(rr,cc)
 
+                # 발사 횟수 증가
+                self.fire_count+=1
+
+                # 4발마다 벽 하강함.
+                if self.fire_count>=LAUNCH_COOLDOWN:
+                    self.grid.drop_wall()
+                    self.fire_count=0
+                        # 초기화
+
+                self.current_bubble=None
                 self.fire_in_air=False
+
                 self.prepare_bubbles()
+
+        # 스테이지 클리어했는지 체크함.
+        if self.is_stage_cleared():
+            self.current_stage+=1
+
+            # 모든 스테이지 클리어하면 게임 종료
+            if self.current_stage>=len(STAGES):
+                self.running=False
+            else:
+                self.load_stage(self.current_stage)
 
     # 스테이지 클리어 여부 확인함.
     def is_stage_cleared(self)->bool:
+        """스테이지 클리어 여부 확인함.
+
+        Returns:
+            bool: 클리어 여부
+        """
         # TODO: 맵에 버블이 남아있는지 체크하기.
-        pass
+        for r in range(self.grid.rows):
+            for c in range(self.grid.cols):
+                if self.grid.map[r][c] in COLORS:
+                    return False
+                        # 버블이 남아있으면 안 됨.
+        return True
+            # 모든 버블 없으면
 
     # 가장 아래 버블의 y좌표 구함.
-    def lowest_bubble_bottom(self)->float:
+    def lowest_bubble_bottom(self)->int:
+        """가장 아래 버블 y좌표 구함.
+
+        게임 오버 조건 체크하기 위해서.
+
+        Returns:
+            int: 가장 아래 버블 하단 y좌표
+        """
         # TODO: bubble_list에서 최대 y 값 찾기.
-        pass
+        # 모든 버블의 하단 y좌표 수집해서 list로
+        bottoms=[b.y+b.radius for b in self.grid.bubble_list]
+        return max(bottoms) if bottoms else 0
 
     # 화면 그림.
     def draw(self)->None:
@@ -778,6 +851,9 @@ class Game:
             #     if event.type==pygame.QUIT:
             #         self.running=False
             self.draw()
+
+        if self.lowest_bubble_bottom()>self.game_over_line:
+            self.running=False
 
         # 종료 화면
         # TODO: 승리, 패배 메시지 표시하기.
