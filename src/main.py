@@ -619,7 +619,7 @@ class Game:
         # 초기화
         self.current_bubble=None
         self.next_bubble=None
-        self.fire_in_air=None
+        self.fire_in_air=False
         self.fire_count=0
 
         self.prepare_bubbles()
@@ -790,6 +790,10 @@ class Game:
             else:
                 self.load_stage(self.current_stage)
 
+        # 게임 오버 조건 체크함.
+        if self.lowest_bubble_bottom()>self.game_over_line:
+            self.running=False
+
     # 스테이지 클리어 여부 확인함.
     def is_stage_cleared(self)->bool:
         """스테이지 클리어 여부 확인함.
@@ -851,9 +855,6 @@ class Game:
             #     if event.type==pygame.QUIT:
             #         self.running=False
             self.draw()
-
-        if self.lowest_bubble_bottom()>self.game_over_line:
-            self.running=False
 
         # 종료 화면
         # TODO: 승리, 패배 메시지 표시하기.
