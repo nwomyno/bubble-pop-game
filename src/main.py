@@ -16,7 +16,7 @@ pygame.init()
 # ======== 전역 설정 ========
 # 화면 설정
 """ 테스트용: 나중에 각각 1920, 1080으로 수정 """
-SCREEN_WIDTH:int=1200
+SCREEN_WIDTH:int=1440
     # 화면 너비
 SCREEN_HEIGHT:int=720
     # 화면 높이
@@ -59,7 +59,7 @@ COLORS:dict[str,Tuple[int,int,int]]={
 # 맵 크기
 MAP_ROWS:int=12
     # 격자 행 수
-MAP_COLS:int=24
+MAP_COLS:int=22
     # 격자 열 수
 
 # 맵 데이터 1개만
@@ -817,6 +817,7 @@ class Game:
 
         # 스테이지 클리어했는지 체크함.
         if self.is_stage_cleared():
+            self.show_stage_clear()
             self.current_stage+=1
 
             # 모든 스테이지 클리어하면 게임 종료
@@ -961,6 +962,35 @@ class Game:
 
         pygame.display.flip()
             # 화면 갱신함.
+
+    def show_stage_clear(self)->None:
+        """스테이지 클리어 화면 표시
+        """
+        # 반투명한 오버레이
+        overlay=pygame.Surface((SCREEN_WIDTH,SCREEN_HEIGHT))
+        overlay.set_alpha(200)
+        overlay.fill((0,0,0))
+        self.screen.blit(overlay,(0,0))
+
+        # 텍스트
+        font=pygame.font.Font(None,120)
+        text=font.render('clear.',True,(100,255,100))
+            # 연두색
+        rect=text.get_rect(center=(SCREEN_WIDTH//2,SCREEN_HEIGHT//2))
+        self.screen.blit(text,rect)
+
+        # 스테이지 정보 (작은 글씨로)
+        small_font=pygame.font.Font(None,50)
+        info=small_font.render(
+            f'Stage {self.current_stage} complete.',
+            True,
+            (200,200,200)
+        )
+        info_rect=info.get_rect(center=(SCREEN_WIDTH//2,SCREEN_HEIGHT//2+80))
+        self.screen.blit(info,info_rect)
+
+        pygame.display.flip()
+        pygame.time.delay(1000)
 
     # 메인 게임 루프 실행함.
     def run(self)->None:
