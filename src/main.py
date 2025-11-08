@@ -13,6 +13,20 @@ import pygame
 # 게임 초기화함.
 pygame.init()
 
+# 버블 이미지 로드 (45x45 → 48x48로 확대)
+try:
+    BUBBLE_IMAGES: dict[str, pygame.Surface] = {
+        'R': pygame.image.load('assets/bubble_red.png'),
+        'Y': pygame.image.load('assets/bubble_yellow.png'),
+        'B': pygame.image.load('assets/bubble_blue.png'),
+        'G': pygame.image.load('assets/bubble_green.png'),
+    }
+    print("버블 이미지 로드 완료.")
+
+except pygame.error as e:
+    print(f"이미지 로드 실패함: {e}")
+    BUBBLE_IMAGES = None
+
 # ======== 전역 설정 ========
 # 화면 설정
 """ 테스트용: 나중에 각각 1920, 1080으로 수정 """
@@ -36,6 +50,17 @@ BUBBLE_RADIUS:int=24
     # 버블 반지름
 BUBBLE_SPEED:int=14
     # 버블 발사 속도
+
+# ======== 이미지 크기 조정 ========
+if BUBBLE_IMAGES:
+    target_size = BUBBLE_RADIUS * 2
+        # 48x48
+    for color in BUBBLE_IMAGES:
+        BUBBLE_IMAGES[color] = pygame.transform.smoothscale(
+            BUBBLE_IMAGES[color],
+            (target_size, target_size)
+        )
+    print(f"이미지 크기 조정 완료: {target_size}x{target_size}px")
 
 # 발사 후 떨어지는 버블 수: 4발
 # 게임 규칙
@@ -148,10 +173,18 @@ class Bubble:
     def draw(self,screen:pygame.Surface)->None:
         # TODO: 색깔 딕셔너리를 써서 버블 원 그리기.
         # TODO: 테두리 추가해서 가독성 향상시키기.
-        # 버블 원 그림.
-        pygame.draw.circle(screen,COLORS[self.color],(int(self.x),int(self.y)),self.radius)
-        # 흰색 테두리 추가해서 가독성 향상시킴.
-        pygame.draw.circle(screen,(255,255,255),(int(self.x),int(self.y)),self.radius,2)
+        # 버블 PNG 이미지 사용함.
+        if BUBBLE_IMAGES:
+            img=BUBBLE_IMAGES[self.color]
+            rect=img.get_rect(center=(int(self.x),int(self.y)))
+            screen.blit(img,rect)
+        else:
+            pygame.draw.circle(screen,COLORS[self.color],(int(self.x),int(self.y)),self.radius)
+            pygame.draw.circle(screen,(255,255,255),(int(self.x),int(self.y)),self.radius,2)
+
+        # pygame.draw.circle()
+        # # 흰색 테두리 추가해서 가독성 향상시킴.
+        # pygame.draw.circle(screen,(255,255,255),(int(self.x),int(self.y)),self.radius,2)
 
     # 발사 각도 설정함.
     def set_angle(self,angle_degree:float)->None:
@@ -982,7 +1015,7 @@ class Game:
         # 스테이지 정보 (작은 글씨로)
         small_font=pygame.font.Font(None,50)
         info=small_font.render(
-            f'Stage {self.current_stage} complete.',
+            f'Stage {self.current_stage+1} complete.',
             True,
             (200,200,200)
         )
