@@ -1,29 +1,37 @@
 import math
 import random
 import sys
+import csv
+import os
 from typing import List, Set, Tuple, Optional
 import pygame
 
 # --- 에셋 파일 경로 ---  (<-- 추가됨)
 # 사용자의 실제 파일 경로로 수정하세요.
 ASSET_PATHS = {
-    'bubble_red': 'assets/bubble_red.png',
-    'bubble_yellow': 'assets/bubble_yellow.png',
-    'bubble_blue': 'assets/bubble_blue.png',
-    'bubble_green': 'assets/bubble_green.png',
-    'background': 'assets/background.png',
-    'game_area_bg': 'assets/bg_box.png', # (<-- 추가됨)
-    'char_left': 'assets/char_left.png',
-    'char_right': 'assets/char_right.png',
-    'logo': 'assets/logo.png',
-    'cannon_arrow': 'assets/cannon_arrow.png', # 십자+화살표 이미지
-    'font': None  # None으로 설정 시 기본 폰트 사용, 'assets/pixel_font.ttf' 등으로 변경 가능
+    'bubble_red': 'assets/images/bubble_red.png',
+    'bubble_yellow': 'assets/images/bubble_yellow.png',
+    'bubble_blue': 'assets/images/bubble_blue.png',
+    'bubble_green': 'assets/images/bubble_green.png',
+    'background': 'assets/images/background.png',
+    'char_left': 'assets/images/char_left.png',
+    'char_right': 'assets/images/char_right.png',
+    'logo': 'assets/images/logo.png',
+    'cannon_arrow': 'assets/images/cannon_arrow.png', # 십자+화살표 이미지
+    'font': None,  # None으로 설정 시 기본 폰트 사용, 'assets/pixel_font.ttf' 등으로 변경 가능
+    'bgm': 'assets/sounds/main_theme_01.wav',  # 배경음악
+    'pop_sounds': [  # 터트릴 때 재생할 효과음 리스트
+        'assets/sounds/pop_01.wav',
+        'assets/sounds/pop_02.wav',
+    ],
+    'tap_sound': 'assets/sounds/tap.wav',  # 달라붙을 때 재생할 효과음
 }
 
 # 게임 초기화
 pygame.init()
+pygame.mixer.init()  # 사운드 시스템 초기화
 
-# 버블 이미지 로드 (45x45 → 48x48로 확대)
+# 버블 이미지 로드 
 try:
     BUBBLE_IMAGES: dict[str, pygame.Surface] = {
         'R': pygame.image.load(ASSET_PATHS['bubble_red']),
@@ -44,9 +52,17 @@ FPS: int = 60
 UI_ALPHA = 180
 END_SCREEN_DELAY = 300
 
-CELL_SIZE: int = 98
-BUBBLE_RADIUS: int = 37
-BUBBLE_SPEED: int = 14
+# 사운드 볼륨 설정 (0.0 ~ 1.0)
+POP_SOUND_VOLUME = 0.3  # 터트릴 때 효과음 볼륨
+TAP_SOUND_VOLUME = 0.4  # 달라붙을 때 효과음 볼륨
+
+# 다음 버블 미리보기 표시 좌표 (사용자가 설정 가능)
+NEXT_BUBBLE_X = 750  # 다음 버블 표시 X 좌표
+NEXT_BUBBLE_Y_OFFSET = -80  # SCREEN_HEIGHT 기준 Y 오프셋 (음수면 하단에서 위로)
+
+CELL_SIZE: int = 100
+BUBBLE_RADIUS: int = 47
+BUBBLE_SPEED: int = 30
 
 # ======== 이미지 크기 조정 ========
 if BUBBLE_IMAGES:
@@ -68,43 +84,70 @@ COLORS: dict[str, Tuple[int, int, int]] = {
     'G': (70, 200, 120),
 }
 
-# 맵 크기 (<-- 수정됨: 스크린샷에 맞게 12x10으로 변경)
+# 맵 크기 
 MAP_ROWS: int = 6
 MAP_COLS: int = 8
 
-# 맵 데이터 (<-- 수정됨: 12열에 맞게 스테이지 데이터 축소)
-STAGES: List[List[List[str]]] = [
-    # 스테이지 1
-    [
-        list("RRYYGGBBRRYY"),
-        list("RRYYGGBBRRYG"), # / 대신 G로 채움
-        list("BBGGRRYYBBGG"),
-        list("BBGGRRYYBBGR"), # / 대신 R로 채움
-        list("............"),
-        list("............"),
-        list("............"),
-        list("............"),
-        list("............"),
-        list("............"),
-    ],
-    # 스테이지 2
-    [
-        list("R.Y.G.B.R.Y."),
-        list("Y.G.B.R.Y.G."),
-        list("G.B.R.Y.G.B."),
-        list("B.R.Y.G.B.R."),
-        list("....RRGGYYBB"),
-        list("....RRGGYYBB"),
-        list("............"),
-        list("............"),
-        list("............"),
-        list("............"),
-    ],
-]
 
 # ======== 유틸리티 함수 정의 ========
 def clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
+
+def load_stage_from_csv(stage_index: int) -> List[List[str]]:
+    """CSV 파일에서 스테이지 맵 데이터를 읽어옴.
+    
+    Args:
+        stage_index: 스테이지 인덱스 (0부터 시작)
+    
+    Returns:
+        맵 데이터 리스트 (각 행은 문자열 리스트)
+    """
+    csv_path = f'assets/map_data/stage{stage_index + 1}.csv'
+    
+    # 파일이 존재하는지 확인
+    if not os.path.exists(csv_path):
+        print(f"경고: {csv_path} 파일을 찾을 수 없습니다. 기본 맵을 사용합니다.")
+        # 기본 빈 맵 반환
+        return [['.' for _ in range(MAP_COLS)] for _ in range(MAP_ROWS)]
+    
+    stage_map = []
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                # CSV 행을 리스트로 변환
+                map_row = []
+                for cell in row:
+                    cell = cell.strip()  # 공백 제거
+                    # 빈 값이나 'X'는 '.'으로 변환
+                    if cell == '' or cell.upper() == 'X':
+                        map_row.append('.')
+                    elif cell.upper() in COLORS:
+                        map_row.append(cell.upper())
+                    else:
+                        map_row.append('.')  # 알 수 없는 값은 빈 칸으로
+                
+                # 행의 길이가 MAP_COLS보다 짧으면 '.'으로 채움
+                while len(map_row) < MAP_COLS:
+                    map_row.append('.')
+                # 행의 길이가 MAP_COLS보다 길면 자름
+                map_row = map_row[:MAP_COLS]
+                
+                stage_map.append(map_row)
+        
+        # 행의 개수가 MAP_ROWS보다 짧으면 빈 행으로 채움
+        while len(stage_map) < MAP_ROWS:
+            stage_map.append(['.' for _ in range(MAP_COLS)])
+        # 행의 개수가 MAP_ROWS보다 길면 자름
+        stage_map = stage_map[:MAP_ROWS]
+        
+        print(f"스테이지 {stage_index + 1} 맵 데이터 로드 완료: {csv_path}")
+        return stage_map
+        
+    except Exception as e:
+        print(f"오류: {csv_path} 파일을 읽는 중 오류가 발생했습니다: {e}")
+        # 기본 빈 맵 반환
+        return [['.' for _ in range(MAP_COLS)] for _ in range(MAP_ROWS)]
 
 # ======== 버블 클래스 - 버블 객체 ========
 class Bubble:
@@ -165,7 +208,7 @@ class Cannon:
         self.angle: float = 90
         self.min_angle: float = 10
         self.max_angle: float = 170
-        self.angle_speed: float = 2.0
+        self.angle_speed: float = 4.0  # 회전 속도 증가 (2.0 -> 4.0)
 
             # --- 그래픽 로드 --- (<-- 추가됨)
         try:
@@ -448,13 +491,13 @@ class Game:
         # --- 레이아웃 오프셋 계산 --- (<-- 추가됨)
         # 맵의 실제 너비를 계산
         map_pixel_width = (MAP_COLS * CELL_SIZE) + (CELL_SIZE // 2) 
-        self.grid_x_offset = (SCREEN_WIDTH - map_pixel_width) // 2
-        self.grid_y_offset = 100 # 상단 여백
+        self.grid_x_offset = ((SCREEN_WIDTH - map_pixel_width) // 2) + 25
+        self.grid_y_offset = 30 # 상단 여백
 
         # 파란색 게임 영역 사각형 정의
-        padding = 20
+        padding = 10
         game_area_w = map_pixel_width + (padding * 2)
-        game_area_h = SCREEN_HEIGHT - self.grid_y_offset - 50 # 하단 여백 50
+        game_area_h = SCREEN_HEIGHT - self.grid_y_offset  # 하단 여백 50
         game_area_x = (SCREEN_WIDTH - game_area_w) // 2
         game_area_y = self.grid_y_offset - padding
         self.game_rect = pygame.Rect(game_area_x, game_area_y, game_area_w, game_area_h)
@@ -464,7 +507,7 @@ class Game:
 
         # --- 발사대 위치 수정 --- (<-- 수정됨)
         cannon_x = self.game_rect.centerx
-        cannon_y = self.game_rect.bottom - 120  # 게임 영역 하단에서 60px 위
+        cannon_y = self.game_rect.bottom - 170  # 게임 영역 하단에서 60px 위
         self.cannon: Cannon = Cannon(cannon_x, cannon_y)
 
         # --- 게임 오버 라인 수정 --- (<-- 수정됨)
@@ -486,11 +529,6 @@ class Game:
             self.char_right = pygame.transform.smoothscale(self.char_right, (308, 555))
             self.logo = pygame.transform.smoothscale(self.logo, (176, 176))
             
-            # (<-- 추가됨) 게임 영역 배경 이미지 로드
-            self.game_area_bg = pygame.image.load(ASSET_PATHS['game_area_bg']).convert_alpha()
-            # 원본 크기 사용, 앵커(중심)만 self.game_rect의 중심으로 설정
-            self.game_area_bg_rect = self.game_area_bg.get_rect(center=self.game_rect.center)
-            
         except pygame.error as e:
             print(f"배경/UI 이미지 로드 실패: {e}")
             self.background_image = None
@@ -498,6 +536,36 @@ class Game:
             self.char_right = None
             self.logo = None
 
+        # --- 사운드 로드 및 재생 --- (<-- 추가됨)
+        try:
+            # BGM 로드 및 무한 반복 재생
+            pygame.mixer.music.load(ASSET_PATHS['bgm'])
+            pygame.mixer.music.set_volume(0.1)  # 볼륨 설정 (0.0 ~ 1.0)
+            pygame.mixer.music.play(-1)  # -1은 무한 반복
+            print("BGM 재생 시작")
+        except pygame.error as e:
+            print(f"BGM 로드 실패: {e}")
+        
+        # 효과음 리스트 로드 (터트릴 때)
+        self.pop_sounds = []
+        for sound_path in ASSET_PATHS['pop_sounds']:
+            try:
+                sound = pygame.mixer.Sound(sound_path)
+                sound.set_volume(POP_SOUND_VOLUME)  # 볼륨 설정
+                self.pop_sounds.append(sound)
+            except pygame.error as e:
+                print(f"효과음 로드 실패: {sound_path} - {e}")
+        
+        if not self.pop_sounds:
+            print("경고: 효과음 파일을 찾을 수 없습니다.")
+        
+        # 달라붙을 때 효과음 로드
+        try:
+            self.tap_sound = pygame.mixer.Sound(ASSET_PATHS['tap_sound'])
+            self.tap_sound.set_volume(TAP_SOUND_VOLUME)  # 볼륨 설정
+        except pygame.error as e:
+            print(f"tap 효과음 로드 실패: {ASSET_PATHS['tap_sound']} - {e}")
+            self.tap_sound = None
 
         # 게임 상태
         self.current_stage: int = 0
@@ -510,11 +578,16 @@ class Game:
         self.load_stage(self.current_stage)
 
     def load_stage(self, stage_index: int) -> None:
-        if stage_index >= len(STAGES):
-            self.running = False # 모든 스테이지 클리어
-            return
-            
-        stage_map = STAGES[stage_index]
+        # CSV 파일에서 맵 데이터 읽어오기
+        stage_map = load_stage_from_csv(stage_index)
+        
+        # 맵이 비어있으면 게임 종료
+        if not stage_map or all(all(cell == '.' for cell in row) for row in stage_map):
+            # 다음 스테이지 파일이 있는지 확인
+            next_csv_path = f'assets/map_data/stage{stage_index + 2}.csv'
+            if not os.path.exists(next_csv_path):
+                self.running = False  # 모든 스테이지 클리어
+                return
         
         # --- 오프셋 초기화 시 y_offset도 반영 --- (<-- 수정됨)
         self.grid.wall_offset = 0 
@@ -530,14 +603,13 @@ class Game:
         self.prepare_bubbles()
 
     def random_color_from_map(self) -> str:
+        # 현재 맵에 남아있는 버블들의 색깔만 수집함.
         colors = set()
-        for r in range(self.grid.rows):
-            if r >= len(self.grid.map): continue # (<-- 안정성)
-            for c in range(self.grid.cols):
-                if c >= len(self.grid.map[r]): continue # (<-- 안정성)
-                ch = self.grid.map[r][c]
-                if ch in COLORS:
-                    colors.add(ch)
+        # grid.bubble_list에서 실제 남아있는 버블들의 색을 수집함.
+        for bubble in self.grid.bubble_list:
+            if bubble.color in COLORS:
+                colors.add(bubble.color)
+        # 맵에 버블이 없으면 모든 색깔 사용 가능하도록 설정함.
         if not colors:
             colors = set(COLORS.keys())
         return random.choice(list(colors))
@@ -567,6 +639,16 @@ class Game:
             # 천장에 붙일 땐 항상 0번째 행으로 강제
             r = 0 
             self.grid.place_bubble(self.current_bubble, r, c)
+            
+            # 터지는지 확인 (<-- 추가됨)
+            popped_count = self.pop_if_match(r, c)
+            # 터지지 않았으면 tap 사운드 재생
+            if popped_count == 0:
+                if hasattr(self, 'tap_sound') and self.tap_sound:
+                    try:
+                        self.tap_sound.play()
+                    except:
+                        pass
             return True
 
         for b in self.grid.bubble_list:
@@ -574,6 +656,16 @@ class Game:
             if dist <= self.current_bubble.radius + b.radius - 2:
                 r, c = self.grid.nearest_grid_to_point(self.current_bubble.x, self.current_bubble.y)
                 self.grid.place_bubble(self.current_bubble, r, c)
+                
+                # 터지는지 확인 (<-- 추가됨)
+                popped_count = self.pop_if_match(r, c)
+                # 터지지 않았으면 tap 사운드 재생
+                if popped_count == 0:
+                    if hasattr(self, 'tap_sound') and self.tap_sound:
+                        try:
+                            self.tap_sound.play()
+                        except:
+                            pass
                 return True
 
         return False
@@ -596,6 +688,15 @@ class Game:
             self.grid.remove_cells(visited)
             self.grid.remove_hanging()
             self.score_ui.add(len(visited) * 10)
+            
+            # 효과음 랜덤 재생 (<-- 추가됨)
+            if hasattr(self, 'pop_sounds') and self.pop_sounds:
+                random_sound = random.choice(self.pop_sounds)
+                try:
+                    random_sound.play()
+                except:
+                    pass  # 효과음 재생 실패 시 무시
+            
             return len(visited)
         return 0
 
@@ -626,8 +727,7 @@ class Game:
                 return
 
             if self.process_collision_and_attach():
-                rr, cc = self.current_bubble.row_idx, self.current_bubble.col_idx
-                self.pop_if_match(rr, cc)
+                # process_collision_and_attach() 내부에서 이미 pop_if_match()가 호출됨
                 self.fire_count += 1
                 if self.fire_count >= LAUNCH_COOLDOWN:
                     self.grid.drop_wall()
@@ -639,7 +739,9 @@ class Game:
         if self.is_stage_cleared():
             self.show_stage_clear()
             self.current_stage += 1
-            if self.current_stage >= len(STAGES):
+            # 다음 스테이지 CSV 파일이 있는지 확인
+            next_csv_path = f'assets/map_data/stage{self.current_stage + 1}.csv'
+            if not os.path.exists(next_csv_path):
                 self.running = False
                 print("All stages cleared!")
             else:
@@ -673,12 +775,8 @@ class Game:
         else:
             self.screen.fill((10, 20, 30)) # 대체 배경
 
-        # --- 2. 파란색 게임 영역 그리기 --- (<-- 수정됨)
-        # pygame.draw.rect(self.screen, (0, 100, 200), self.game_rect) # (<-- 삭제됨)
-        if hasattr(self, 'game_area_bg'): # (<-- 추가됨)
-            self.screen.blit(self.game_area_bg, self.game_area_bg_rect) # (<-- 추가됨)
-        else: # (<-- 추가됨: 로드 실패 시 대체)
-             pygame.draw.rect(self.screen, (0, 100, 200), self.game_rect)
+        # --- 2. 게임 영역 배경 그리기 ---
+        pygame.draw.rect(self.screen, (0, 100, 200), self.game_rect)
 
         # --- 3. 게임 오버 라인 그리기 (스크린샷의 녹색 선) --- (<-- 추가됨)
         pygame.draw.line(self.screen, (0, 255, 3), 
@@ -701,39 +799,30 @@ class Game:
 
         # --- 6. NEXT 버블 UI 수정 --- (<-- 수정됨)
         if self.next_bubble:
-            next_x = self.cannon.x - 180 # 발사대 왼쪽
-            next_y = self.cannon.y + 80  # 발사대 살짝 아래
+            # 다음 버블 표시 좌표 (상수로 정의되어 사용자가 쉽게 변경 가능)
+            next_x = NEXT_BUBBLE_X
+            next_y = SCREEN_HEIGHT + NEXT_BUBBLE_Y_OFFSET if NEXT_BUBBLE_Y_OFFSET < 0 else NEXT_BUBBLE_Y_OFFSET
             
             # "NEXT" 텍스트 (검은색)
-            font = pygame.font.Font(ASSET_PATHS['font'], 32)
+            try:
+                font = pygame.font.Font(ASSET_PATHS['font'], 40) if ASSET_PATHS['font'] else pygame.font.Font(None, 40)
+            except:
+                font = pygame.font.Font(None, 40)
             next_txt = font.render("NEXT", True, (0, 0, 0))
-            next_txt_rect = next_txt.get_rect(center=(next_x, next_y - 30))
+            next_txt_rect = next_txt.get_rect(center=(next_x, next_y - 70))
             self.screen.blit(next_txt, next_txt_rect)
 
-            # 다음 버블 (흰색 원으로 표시)
-            pygame.draw.circle(self.screen, (255,255,255), (next_x, next_y + 20), self.next_bubble.radius + 2)
-            
-            # (버블 색상 대신 흰색 원으로 표시하는 스크린샷 반영)
-            # pygame.draw.circle(
-            #     self.screen,
-            #     COLORS[self.next_bubble.color],
-            #     (next_x, next_y),
-            #     self.next_bubble.radius
-            # )
-            # pygame.draw.circle(
-            #     self.screen, (255, 255, 255), (next_x, next_y), self.next_bubble.radius, 2
-            # )
+            # 다음 버블을 실제 색상으로 표시
+            # next_bubble의 위치를 임시로 변경하여 표시
+            original_x, original_y = self.next_bubble.x, self.next_bubble.y
+            self.next_bubble.x, self.next_bubble.y = next_x, next_y
+            self.next_bubble.draw(self.screen)
+            # 원래 위치로 복원
+            self.next_bubble.x, self.next_bubble.y = original_x, original_y
 
 
         # --- 7. 점수 UI 그리기 (레벨 전달) --- (<-- 수정됨)
         self.score_ui.draw(self.screen, self.current_stage + 1)
-
-        # --- 8. 상단 정보 UI 제거 ---
-        # (스코어/레벨이 왼쪽 상단으로 이동했으므로 기존 중앙 UI는 주석 처리)
-        # font = pygame.font.Font(None, 40)
-        # info = f'Stage {self.current_stage+1}/{len(STAGES)} | Shots {self.fire_count}/{LAUNCH_COOLDOWN} | Angle {int(self.cannon.angle)}'
-        # ... (이하 생략) ...
-
         pygame.display.flip()
 
     def show_stage_clear(self) -> None:
@@ -766,11 +855,16 @@ class Game:
             self.update()
             self.draw()
 
+        # BGM 정지 (<-- 추가됨)
+        pygame.mixer.music.stop()
+        
         # 종료 화면
         self.screen.fill((0, 0, 0))
         font = pygame.font.Font(ASSET_PATHS['font'], 100)
         
-        if self.current_stage >= len(STAGES):
+        # 다음 스테이지 CSV 파일이 있는지 확인하여 승리/패배 판단
+        next_csv_path = f'assets/map_data/stage{self.current_stage + 1}.csv'
+        if not os.path.exists(next_csv_path):
             msg = "YOU WIN!" # (<-- 수정됨)
         else:
             msg = "GAME OVER" # (<-- 수정됨)
