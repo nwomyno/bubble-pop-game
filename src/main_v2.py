@@ -13,32 +13,39 @@ from config import (
     NEXT_BUBBLE_X,NEXT_BUBBLE_Y_OFFSET
 )
 from game_settings import (
-    UI_ALPHA,        # 임시
     END_SCREEN_DELAY,POP_SOUND_VOLUME,TAP_SOUND_VOLUME
 )
+from asset_paths import ASSET_PATHS
+from constants import BubbleColor, GameState
+from color_settings import (COLORS,
+                            COLOR_MAP)
+
+# ─────────────────────────────────────────
+# 상대 경로 문제 해결
+# ─────────────────────────────────────────
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 # --- 에셋 파일 경로 ---  (<-- 추가됨)
 # 사용자의 실제 파일 경로로 수정하세요.
-ASSET_PATHS = {
-    'bubble_red': 'assets/images/bubble_red.png',
-    'bubble_yellow': 'assets/images/bubble_yellow.png',
-    'bubble_blue': 'assets/images/bubble_blue.png',
-    'bubble_green': 'assets/images/bubble_green.png',
-    'background': 'assets/images/background.png',
-    'char_left': 'assets/images/char_left.png',
-    'char_right': 'assets/images/char_right.png',
-    'logo': 'assets/images/logo.png',
-    'cannon_arrow': 'assets/images/cannon_arrow.png', # 십자+화살표 이미지
-    'font': None,  # None으로 설정 시 기본 폰트 사용, 'assets/pixel_font.ttf' 등으로 변경 가능
-    'bgm': 'assets/sounds/main_theme_01.wav',  # 배경음악
-    'pop_sounds': [  # 터트릴 때 재생할 효과음 리스트
-        'assets/sounds/pop_01.wav',
-        'assets/sounds/pop_02.wav',
-    ],
-    'tap_sound': 'assets/sounds/tap.wav',  # 달라붙을 때 재생할 효과음
-}
+# ASSET_PATHS = {
+#     'bubble_red': 'assets/images/bubble_red.png',
+#     'bubble_yellow': 'assets/images/bubble_yellow.png',
+#     'bubble_blue': 'assets/images/bubble_blue.png',
+#     'bubble_green': 'assets/images/bubble_green.png',
+#     'background': 'assets/images/background.png',
+#     'char_left': 'assets/images/char_left.png',
+#     'char_right': 'assets/images/char_right.png',
+#     'logo': 'assets/images/logo.png',
+#     'cannon_arrow': 'assets/images/cannon_arrow.png', # 십자+화살표 이미지
+#     'font': None,  # None으로 설정 시 기본 폰트 사용, 'assets/pixel_font.ttf' 등으로 변경 가능
+#     'bgm': 'assets/sounds/main_theme_01.wav',  # 배경음악
+#     'pop_sounds': [  # 터트릴 때 재생할 효과음 리스트
+#         'assets/sounds/pop_01.wav',
+#         'assets/sounds/pop_02.wav',
+#     ],
+#     'tap_sound': 'assets/sounds/tap.wav',  # 달라붙을 때 재생할 효과음
+# }
 
 # 게임 초기화
 pygame.init()
