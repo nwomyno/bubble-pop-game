@@ -541,30 +541,51 @@ class Game:
         self.clock: pygame.time.Clock = pygame.time.Clock()
 
         # --- 레이아웃 오프셋 계산 --- (<-- 추가됨)
+        # FIXME: 레이아웃 계산 개선
         # 맵의 실제 너비를 계산
         map_pixel_width = (MAP_COLS * CELL_SIZE) + (CELL_SIZE // 2)
         self.grid_x_offset = ((SCREEN_WIDTH - map_pixel_width) // 2) + 25
+            # [수정: 미세 왼쪽 이동]
+        # self.grid_x_offset = (SCREEN_WIDTH-map_pixel_width)//2 -10
         self.grid_y_offset = 30 # 상단 여백
+            # [수정: 상단 여백 늘리기]
+        # self.grid_y_offset = 70
 
+        # FIXME: 게임 영역 사각형 계산 재조정
         # 파란색 게임 영역 사각형 정의
         padding = 10
+            # [수정: 패딩 증가]
+        # padding = 20
         game_area_w = map_pixel_width + (padding * 2)
         game_area_h = SCREEN_HEIGHT - self.grid_y_offset  # 하단 여백 50
+        # game_area_h = SCREEN_HEIGHT - self.grid_y_offset-100
+            # [수정: 하단 여백 추가]
         game_area_x = (SCREEN_WIDTH - game_area_w) // 2
         game_area_y = self.grid_y_offset - padding
         self.game_rect = pygame.Rect(game_area_x, game_area_y, game_area_w, game_area_h)
 
+        # FIXME: 초기화 세부 조정
         # --- HexGrid 초기화 수정 --- (<-- 수정됨)
-        self.grid: HexGrid = HexGrid(MAP_ROWS, MAP_COLS, CELL_SIZE, 0, self.grid_x_offset, self.grid_y_offset)
+        self.grid: HexGrid = HexGrid(MAP_ROWS, MAP_COLS, CELL_SIZE,
+                                     0, # wall_offset
+                                     self.grid_x_offset, self.grid_y_offset)
+        # self.grid: HexGrid = HexGrid(MAP_ROWS, MAP_COLS, CELL_SIZE,
+        #                              0, # wall_offset
+        #                              self.grid_x_offset-10, self.grid_y_offset+10)
+            # [수정: x 오프셋, y 오프셋 미세 조정]
 
+        # FIXME: 발사대 위치 미세 조정
         # --- 발사대 위치 수정 --- (<-- 수정됨)
         cannon_x = self.game_rect.centerx
         cannon_y = self.game_rect.bottom - 170  # 게임 영역 하단에서 60px 위
+        # cannon_y = self.game_rect.bottom - 200
+            # [수정: 게임 영역 하단에서 더 높게 조정]
 #         cannon_y = self.game_rect.bottom - 120  # 게임 영역 하단에서 60px 위
         self.cannon: Cannon = Cannon(cannon_x, cannon_y)
 
         # --- 게임 오버 라인 수정 --- (<-- 수정됨)
         self.game_over_line = self.cannon.y - CELL_SIZE * 0.5
+        # self.game_over_line = self.cannon.y - CELL_SIZE * 0.7
 
         self.score_ui: ScoreDisplay = ScoreDisplay()
 
