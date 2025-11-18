@@ -8,8 +8,9 @@ class MenuScene:
         self.manager=manager
         # FIXME: 폰트 임시 설정
         self.font=pygame.font.SysFont('Arial',48)
-        self.options=['Start Game','Settings','Quit']
-            # 메뉴 항목
+        # FIXME: 메뉴 항목
+        # self.options=['Start Game','Settings','Quit']
+        self.options=['Start Game','Quit']
         self.selected_index=0
             # 리스트 안에서 현재 선택된 인덱스
 
@@ -25,9 +26,10 @@ class MenuScene:
             elif event.key==pygame.K_RETURN:
                 # Start Game 선택 시
                 if self.selected_index==0:
-                    self.manager.change(GameScene(self.manager))
+                    # self.manager.change(GameScene(self.manager))
+                    self.manager.change('game')
                 # Exit 선택 시
-                elif self.selected_index==2:
+                elif self.selected_index==1:
                     pygame.quit()
                     exit()
 
@@ -36,14 +38,13 @@ class MenuScene:
         screen.fill((30,30,30))
         for index, option in enumerate(self.options):
             # FIXME: RGB 값 임시 설정
-            color=(255,255,255)if index==self.selected_index else (200,200,200)
+            color=(255,255,255)if index==self.selected_index else (180,180,180)
 
             text=self.font.render(option,True,color)
-                # 렌더링
             # FIXME: 위치 조정: y좌표 조정
-            text_rectangle=text.get_rect(center=(400,SCREEN_HEIGHT*2/3+index*50))
+            rect=text.get_rect(center=(400,300+index*60))
 
-            screen.blit(text,text_rectangle)
+            screen.blit(text,rect)
 
     def update(self):
         # TODO: 업데이트할 내용 있으면 나중에 구현

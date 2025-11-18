@@ -10,6 +10,7 @@ import pygame
 # 메뉴 UI
 from scene_manager import SceneManager
 from menu_scene import MenuScene
+from game_scene import GameScene
 
 # 설정 파일, 모듈들
 from config import (
@@ -1007,6 +1008,14 @@ class Game:
         pygame.display.flip()
         pygame.time.delay(END_SCREEN_DELAY)
 
+def scene_factory(scene_name,manager):
+    """씬 생성 팩토리"""
+    if scene_name=='menu':
+        return MenuScene(manager)
+    if scene_name=='game':
+        return GameScene(manager)
+    raise ValueError(f'unknown scene: {scene_name}')
+
 def main() -> None:
     """시작점"""
     pygame.init()
@@ -1017,8 +1026,10 @@ def main() -> None:
     clock=pygame.time.Clock()
 
     # MenuScene으로 일단 시작
-    manager=SceneManager(MenuScene(manager=None))
-    manager.current_scene.manager=manager
+    # manager=SceneManager(MenuScene(manager=None))
+    manager=SceneManager(scene_factory)
+    # manager.current_scene.manager=manager
+    manager.change('menu')
         # SceneManager 연결
 
     running=True
@@ -1043,9 +1054,9 @@ def main() -> None:
         # (필요시, 여기서 로드 실패 시 게임을 종료할 수 있음)
         # return
 
-    Game().run()
-    pygame.quit()
-    sys.exit()
+    # Game().run()
+    # pygame.quit()
+    # sys.exit()
 
 if __name__ == "__main__":
     main()
