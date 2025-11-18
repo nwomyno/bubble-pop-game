@@ -1,7 +1,10 @@
 ---
-# Bubble Pop Game
+# "중요: README, CONTRIBUTORS 등 문서 다듬을 필요 있음."
+# "중요: README, CONTRIBUTORS 등 문서 다듬을 필요 있음."
 
-Python pygame 기반의 버블 슈터 게임
+# Bubble Pop Game 
+
+Python pygame 기반의 버블 슈터 게임 
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue.svg)
 ![Pygame](https://img.shields.io/badge/Pygame-2.5.2-green.svg)
