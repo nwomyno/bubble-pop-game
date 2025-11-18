@@ -713,9 +713,9 @@ class Game:
 
         next_csv_path=f'assets/map_data/stage{self.current_stage+1}.csv'
         if not os.path.exists(next_csv_path):
-            msg="YOU WIN!"
+            msg="you win."
         else:
-            msg="GAME OVER"
+            msg="game over."
 
         txt=font.render(msg,True,(255,255,255))
         rect=txt.get_rect(center=(SCREEN_WIDTH//2,SCREEN_HEIGHT//2))

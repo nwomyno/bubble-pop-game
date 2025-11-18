@@ -1,5 +1,5 @@
-import pygame
 import sys
+import pygame
 
 from config import SCREEN_WIDTH,SCREEN_HEIGHT
 from scene_manager import SceneManager
@@ -9,24 +9,10 @@ def main():
     pygame.init()
     pygame.mixer.init()
 
-    screen=pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
-    clock=pygame.time.Clock()
+    pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 
     manager=SceneManager(scene_factory)
-    manager.change('menu')
-
-    running=True
-    while running:
-        for event in pygame.event.get():
-            if event.type==pygame.QUIT:
-                running=False
-            manager.handle_event(event)
-
-        manager.update()
-        manager.draw(screen)
-
-        pygame.display.flip()
-        clock.tick(60)
+    manager.run('menu')
 
     pygame.quit()
     sys.exit()
