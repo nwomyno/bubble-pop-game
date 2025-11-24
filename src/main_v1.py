@@ -29,10 +29,9 @@ except pygame.error as e:
 
 # ======== 전역 설정 ========
 # 화면 설정
-""" 테스트용: 나중에 각각 1920, 1080으로 수정 """
-SCREEN_WIDTH:int=1440
+SCREEN_WIDTH:int=1550
     # 화면 너비
-SCREEN_HEIGHT:int=720
+SCREEN_HEIGHT:int=870
     # 화면 높이
 FPS:int=60
     # 초당 프레임 수
@@ -41,14 +40,14 @@ FPS:int=60
 UI_ALPHA=180
 
 # 종료 화면 딜레이 값 (ms)
-END_SCREEN_DELAY=300
+END_SCREEN_DELAY=15
 
 # 게임 오브젝트 크기 설정
 CELL_SIZE:int=64
     # 육각형 격자 셀 간격
 BUBBLE_RADIUS:int=22
     # 버블 반지름
-BUBBLE_SPEED:int=14
+BUBBLE_SPEED:int=30
     # 버블 발사 속도
 
 # ======== 이미지 크기 조정 ========
@@ -1051,7 +1050,7 @@ class Game:
         if self.current_stage>=len(STAGES):
             msg="Good."
         else:
-            msg="Bye."
+            msg="bye."
 
         # 텍스트 렌더링하고 중앙 배치하기
         txt=font.render(msg,True,(255,255,255))

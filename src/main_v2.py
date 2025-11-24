@@ -10,7 +10,7 @@ import pygame
 from config import (
     SCREEN_WIDTH,SCREEN_HEIGHT,FPS,CELL_SIZE,BUBBLE_RADIUS,BUBBLE_SPEED,
     LAUNCH_COOLDOWN,WALL_DROP_PIXELS,MAP_ROWS,MAP_COLS,
-    NEXT_BUBBLE_X,NEXT_BUBBLE_Y_OFFSET
+    NEXT_BUBBLE_X,NEXT_BUBBLE_Y_OFFSET,SCALE,SCALE_X,SCALE_Y
 )
 from game_settings import (
     END_SCREEN_DELAY,POP_SOUND_VOLUME,TAP_SOUND_VOLUME
@@ -26,26 +26,7 @@ from color_settings import (COLORS,
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
-# --- 에셋 파일 경로 ---  (<-- 추가됨)
-# 사용자의 실제 파일 경로로 수정하세요.
-# ASSET_PATHS = {
-#     'bubble_red': 'assets/images/bubble_red.png',
-#     'bubble_yellow': 'assets/images/bubble_yellow.png',
-#     'bubble_blue': 'assets/images/bubble_blue.png',
-#     'bubble_green': 'assets/images/bubble_green.png',
-#     'background': 'assets/images/background.png',
-#     'char_left': 'assets/images/char_left.png',
-#     'char_right': 'assets/images/char_right.png',
-#     'logo': 'assets/images/logo.png',
-#     'cannon_arrow': 'assets/images/cannon_arrow.png', # 십자+화살표 이미지
-#     'font': None,  # None으로 설정 시 기본 폰트 사용, 'assets/pixel_font.ttf' 등으로 변경 가능
-#     'bgm': 'assets/sounds/main_theme_01.wav',  # 배경음악
-#     'pop_sounds': [  # 터트릴 때 재생할 효과음 리스트
-#         'assets/sounds/pop_01.wav',
-#         'assets/sounds/pop_02.wav',
-#     ],
-#     'tap_sound': 'assets/sounds/tap.wav',  # 달라붙을 때 재생할 효과음
-# }
+
 
 # 게임 초기화
 pygame.init()
@@ -266,10 +247,11 @@ class Cannon:
             # self.base_image = pygame.image.load(ASSET_PATHS['cannon_base']).convert_alpha() # (<-- 삭제됨)
             self.arrow_image = pygame.image.load(ASSET_PATHS['cannon_arrow']).convert_alpha()
 
-            # (예시 크기 조절, 필요에 따라 수정)
-            # self.base_image = pygame.transform.smoothscale(self.base_image, (90, 90)) # (<-- 삭제됨)
-            # 십자선+화살표 이미지 크기를 90x90으로 가정, 필요시 수정
-            self.arrow_image = pygame.transform.smoothscale(self.arrow_image, (152, 317)) # (<-- 크기 수정)
+            # 스케일 적용된 크기로 조정
+            base_arrow_w, base_arrow_h = 152, 317
+            arrow_w = int(base_arrow_w * SCALE)
+            arrow_h = int(base_arrow_h * SCALE)
+            self.arrow_image = pygame.transform.smoothscale(self.arrow_image, (arrow_w, arrow_h))
 
         except pygame.error:
             print("발사대 이미지 로드 실패")
@@ -511,25 +493,37 @@ class ScoreDisplay:
     """ 게임의 현재 점수를 표시하는 UI. """
     def __init__(self) -> None:
         self.score: int = 0
-        # --- 폰트 수정 --- (<-- 수정됨)
+        # --- 폰트 수정 (스케일 적용) --- (<-- 수정됨)
+        base_font_size = 50
+        font_size = int(base_font_size * SCALE)
         try:
-            self.font = pygame.font.Font(ASSET_PATHS['font'], 50)
+            self.font = pygame.font.Font(ASSET_PATHS['font'], font_size)
         except:
             print("픽셀 폰트 로드 실패. 기본 폰트로 대체합니다.")
-            self.font = pygame.font.Font(None, 50) # 크기 키움
+            self.font = pygame.font.Font(None, font_size)
 
     def add(self, points: int) -> None:
         self.score += points
 
-    # --- 레벨 표시 추가 --- (<-- 수정됨)
+    # --- 레벨 표시 추가 (스케일 적용) --- (<-- 수정됨)
     def draw(self, screen: pygame.Surface, level: int) -> None:
         # 스크린샷과 같이 검은색 텍스트 사용
         score_txt = self.font.render(f'SCORE : {self.score}', True, (0, 0, 0))
         level_txt = self.font.render(f'LEVEL : {level}', True, (0, 0, 0))
 
-        # 배경 제거, 위치 변경
-        screen.blit(score_txt, (30, 30))
-        screen.blit(level_txt, (30, 80))
+        # 배경 제거, 위치 변경 (오프셋 기반)
+        # 기본 해상도 기준 왼쪽에서 오프셋, 위에서 오프셋
+        base_offset_x = 30
+        base_offset_y_score = 30
+        base_offset_y_level = 80
+        
+        score_x = int(base_offset_x * SCALE_X)
+        score_y = int(base_offset_y_score * SCALE_Y)
+        level_x = int(base_offset_x * SCALE_X)
+        level_y = int(base_offset_y_level * SCALE_Y)
+        
+        screen.blit(score_txt, (score_x, score_y))
+        screen.blit(level_txt, (level_x, level_y))
 
 
 # ======== Game 클래스 - 메인 게임 로직 ========
@@ -540,16 +534,26 @@ class Game:
         pygame.display.set_caption("Bubble Pop (K-Univ. Edition)") # (<-- 수정됨)
         self.clock: pygame.time.Clock = pygame.time.Clock()
 
-        # --- 레이아웃 오프셋 계산 --- (<-- 추가됨)
+        # --- 레이아웃 오프셋 계산 (오프셋 기반) --- (<-- 추가됨)
         # 맵의 실제 너비를 계산
         map_pixel_width = (MAP_COLS * CELL_SIZE) + (CELL_SIZE // 2)
-        self.grid_x_offset = ((SCREEN_WIDTH - map_pixel_width) // 2) + 25
-        self.grid_y_offset = 30 # 상단 여백
+        
+        # 기본 해상도 기준 오프셋 값
+        base_grid_x_offset = 25  # 맵 중앙에서 오른쪽으로 오프셋
+        base_grid_y_offset = 30  # 화면 위에서 아래로 오프셋
+        
+        # 스케일 적용된 오프셋
+        scaled_grid_x_offset = int(base_grid_x_offset * SCALE_X)
+        scaled_grid_y_offset = int(base_grid_y_offset * SCALE_Y)
+        
+        self.grid_x_offset = ((SCREEN_WIDTH - map_pixel_width) // 2) + scaled_grid_x_offset
+        self.grid_y_offset = scaled_grid_y_offset
 
-        # 파란색 게임 영역 사각형 정의
-        padding = 10
+        # 파란색 게임 영역 사각형 정의 (오프셋 기반)
+        base_padding = 10
+        padding = int(base_padding * SCALE)
         game_area_w = map_pixel_width + (padding * 2)
-        game_area_h = SCREEN_HEIGHT - self.grid_y_offset  # 하단 여백 50
+        game_area_h = SCREEN_HEIGHT - self.grid_y_offset
         game_area_x = (SCREEN_WIDTH - game_area_w) // 2
         game_area_y = self.grid_y_offset - padding
         self.game_rect = pygame.Rect(game_area_x, game_area_y, game_area_w, game_area_h)
@@ -557,10 +561,12 @@ class Game:
         # --- HexGrid 초기화 수정 --- (<-- 수정됨)
         self.grid: HexGrid = HexGrid(MAP_ROWS, MAP_COLS, CELL_SIZE, 0, self.grid_x_offset, self.grid_y_offset)
 
-        # --- 발사대 위치 수정 --- (<-- 수정됨)
+        # --- 발사대 위치 수정 (오프셋 기반) --- (<-- 수정됨)
         cannon_x = self.game_rect.centerx
-        cannon_y = self.game_rect.bottom - 170  # 게임 영역 하단에서 60px 위
-#         cannon_y = self.game_rect.bottom - 120  # 게임 영역 하단에서 60px 위
+        # 기본 해상도 기준 게임 영역 하단에서 위로 오프셋
+        base_cannon_y_offset = 170
+        scaled_cannon_y_offset = int(base_cannon_y_offset * SCALE_Y)
+        cannon_y = self.game_rect.bottom - scaled_cannon_y_offset
         self.cannon: Cannon = Cannon(cannon_x, cannon_y)
 
         # --- 게임 오버 라인 수정 --- (<-- 수정됨)
@@ -577,10 +583,21 @@ class Game:
             self.char_right = pygame.image.load(ASSET_PATHS['char_right']).convert_alpha()
             self.logo = pygame.image.load(ASSET_PATHS['logo']).convert_alpha()
 
-            # (예시 크기 조절, 필요에 따라 수정)
-            self.char_left = pygame.transform.smoothscale(self.char_left, (313, 546))
-            self.char_right = pygame.transform.smoothscale(self.char_right, (308, 555))
-            self.logo = pygame.transform.smoothscale(self.logo, (176, 176))
+            # 스케일 적용된 크기로 조정
+            base_char_left_w, base_char_left_h = 313, 546
+            base_char_right_w, base_char_right_h = 308, 555
+            base_logo_size = 176
+            
+            self.char_left = pygame.transform.smoothscale(
+                self.char_left, 
+                (int(base_char_left_w * SCALE_X), int(base_char_left_h * SCALE_Y))
+            )
+            self.char_right = pygame.transform.smoothscale(
+                self.char_right, 
+                (int(base_char_right_w * SCALE_X), int(base_char_right_h * SCALE_Y))
+            )
+            logo_size = int(base_logo_size * SCALE)
+            self.logo = pygame.transform.smoothscale(self.logo, (logo_size, logo_size))
 
 #             # (<-- 추가됨) 게임 영역 배경 이미지 로드
 #             self.game_area_bg = pygame.image.load(ASSET_PATHS['game_area_bg']).convert_alpha()
@@ -853,10 +870,13 @@ class Game:
 #         else: # (<-- 추가됨: 로드 실패 시 대체)
 #              pygame.draw.rect(self.screen, (0, 100, 200), self.game_rect)
 
-        # --- 3. 게임 오버 라인 그리기 (스크린샷의 녹색 선) --- (<-- 추가됨)
+        # --- 3. 게임 오버 라인 그리기 (오프셋 기반) --- (<-- 추가됨)
+        # 기본 해상도 기준 라인 두께
+        base_line_width = 10
+        scaled_line_width = int(base_line_width * SCALE)
         pygame.draw.line(self.screen, (0, 255, 3),
                          (self.game_rect.left, self.game_over_line),
-                         (self.game_rect.right, self.game_over_line), 10)
+                         (self.game_rect.right, self.game_over_line), scaled_line_width)
 
         # --- 4. 게임 오브젝트 그리기 --- (<-- 순서 변경)
         self.grid.draw(self.screen)
@@ -864,27 +884,58 @@ class Game:
         if self.current_bubble:
             self.current_bubble.draw(self.screen)
 
-        # --- 5. 캐릭터 및 로고 그리기 --- (<-- 추가됨)
+        # --- 5. 캐릭터 및 로고 그리기 (오프셋 기반) --- (<-- 추가됨)
         if self.char_left:
-            self.screen.blit(self.char_left, (self.game_rect.left - 419, SCREEN_HEIGHT - 617))
+            # 기본 해상도 기준: 게임 영역 왼쪽에서 왼쪽으로 오프셋, 화면 아래에서 위로 오프셋
+            base_char_left_offset_x = -419
+            base_char_left_offset_y = 617  # 화면 아래에서 위로
+            scaled_char_left_offset_x = int(base_char_left_offset_x * SCALE_X)
+            scaled_char_left_offset_y = int(base_char_left_offset_y * SCALE_Y)
+            char_left_x = self.game_rect.left + scaled_char_left_offset_x
+            char_left_y = SCREEN_HEIGHT - scaled_char_left_offset_y
+            self.screen.blit(self.char_left, (char_left_x, char_left_y))
+            
         if self.char_right:
-            self.screen.blit(self.char_right, (self.game_rect.right + 80, SCREEN_HEIGHT - 617))
+            # 기본 해상도 기준: 게임 영역 오른쪽에서 오른쪽으로 오프셋, 화면 아래에서 위로 오프셋
+            base_char_right_offset_x = 80
+            base_char_right_offset_y = 617  # 화면 아래에서 위로
+            scaled_char_right_offset_x = int(base_char_right_offset_x * SCALE_X)
+            scaled_char_right_offset_y = int(base_char_right_offset_y * SCALE_Y)
+            char_right_x = self.game_rect.right + scaled_char_right_offset_x
+            char_right_y = SCREEN_HEIGHT - scaled_char_right_offset_y
+            self.screen.blit(self.char_right, (char_right_x, char_right_y))
+            
         if self.logo:
-            self.screen.blit(self.logo, (SCREEN_WIDTH - 198, 18 ))
+            # 기본 해상도 기준: 화면 오른쪽에서 왼쪽으로 오프셋, 화면 위에서 아래로 오프셋
+            base_logo_offset_x = 198
+            base_logo_offset_y = 18
+            scaled_logo_offset_x = int(base_logo_offset_x * SCALE_X)
+            scaled_logo_offset_y = int(base_logo_offset_y * SCALE_Y)
+            logo_x = SCREEN_WIDTH - scaled_logo_offset_x
+            logo_y = scaled_logo_offset_y
+            self.screen.blit(self.logo, (logo_x, logo_y))
 
-        # --- 6. NEXT 버블 UI 수정 --- (<-- 수정됨)
+        # --- 6. NEXT 버블 UI 수정 (오프셋 기반) --- (<-- 수정됨)
         if self.next_bubble:
-            # 다음 버블 표시 좌표 (상수로 정의되어 사용자가 쉽게 변경 가능)
-            next_x = NEXT_BUBBLE_X
-            next_y = SCREEN_HEIGHT + NEXT_BUBBLE_Y_OFFSET if NEXT_BUBBLE_Y_OFFSET < 0 else NEXT_BUBBLE_Y_OFFSET
+            # 기본 해상도 기준: 화면 왼쪽에서 오른쪽으로 오프셋, 화면 아래에서 위로 오프셋
+            base_next_bubble_offset_x = NEXT_BUBBLE_X
+            base_next_bubble_offset_y = abs(NEXT_BUBBLE_Y_OFFSET)  # 절댓값 사용 (음수는 아래에서 위로 의미)
+            scaled_next_bubble_offset_x = int(base_next_bubble_offset_x * SCALE_X)
+            scaled_next_bubble_offset_y = int(base_next_bubble_offset_y * SCALE_Y)
+            next_x = scaled_next_bubble_offset_x
+            next_y = SCREEN_HEIGHT - scaled_next_bubble_offset_y
 
-            # "NEXT" 텍스트 (검은색)
+            # "NEXT" 텍스트 (검은색, 오프셋 기반)
+            base_font_size = 40
+            base_text_offset_y = 70  # 버블 위치에서 위로 오프셋
+            font_size = int(base_font_size * SCALE)
+            scaled_text_offset_y = int(base_text_offset_y * SCALE_Y)
             try:
-                font = pygame.font.Font(ASSET_PATHS['font'], 40) if ASSET_PATHS['font'] else pygame.font.Font(None, 40)
+                font = pygame.font.Font(ASSET_PATHS['font'], font_size) if ASSET_PATHS['font'] else pygame.font.Font(None, font_size)
             except:
-                font = pygame.font.Font(None, 40)
+                font = pygame.font.Font(None, font_size)
             next_txt = font.render("NEXT", True, (0, 0, 0))
-            next_txt_rect = next_txt.get_rect(center=(next_x, next_y - 70))
+            next_txt_rect = next_txt.get_rect(center=(next_x, next_y - scaled_text_offset_y))
             self.screen.blit(next_txt, next_txt_rect)
 
             # 다음 버블을 실제 색상으로 표시
@@ -930,24 +981,31 @@ class Game:
         pygame.display.flip()
 
     def show_stage_clear(self) -> None:
-        """스테이지 클리어 화면 표시"""
+        """스테이지 클리어 화면 표시 (스케일 적용)"""
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         overlay.set_alpha(200)
         overlay.fill((0, 0, 0))
         self.screen.blit(overlay, (0, 0))
 
-        font = pygame.font.Font(ASSET_PATHS['font'], 120)
+        base_font_size = 120
+        base_small_font_size = 50
+        base_offset = 80
+        font_size = int(base_font_size * SCALE)
+        small_font_size = int(base_small_font_size * SCALE)
+        offset = int(base_offset * SCALE_Y)
+        
+        font = pygame.font.Font(ASSET_PATHS['font'], font_size)
         text = font.render('CLEAR!', True, (100, 255, 100))
         rect = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
         self.screen.blit(text, rect)
 
-        small_font = pygame.font.Font(ASSET_PATHS['font'], 50)
+        small_font = pygame.font.Font(ASSET_PATHS['font'], small_font_size)
         info = small_font.render(
             f'Stage {self.current_stage + 1} Complete.',
             True,
             (200, 200, 200)
         )
-        info_rect = info.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80))
+        info_rect = info.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + offset))
         self.screen.blit(info, info_rect)
 
         pygame.display.flip()
@@ -962,9 +1020,11 @@ class Game:
         # BGM 정지 (<-- 추가됨)
         pygame.mixer.music.stop()
 
-        # 종료 화면
+        # 종료 화면 (스케일 적용)
         self.screen.fill((0, 0, 0))
-        font = pygame.font.Font(ASSET_PATHS['font'], 100)
+        base_font_size = 100
+        font_size = int(base_font_size * SCALE)
+        font = pygame.font.Font(ASSET_PATHS['font'], font_size)
 
         # 다음 스테이지 CSV 파일이 있는지 확인하여 승리/패배 판단
         next_csv_path = f'assets/map_data/stage{self.current_stage + 1}.csv'
