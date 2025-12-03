@@ -4,9 +4,11 @@ ASSET_PATHS = {
     'bubble_blue': 'assets/images/bubble_blue.png',
     'bubble_green': 'assets/images/bubble_green.png',
     'background': 'assets/images/background.png',
+    'editor_bg': 'assets/images/editor_bg.png',
     'char_left': 'assets/images/char_left.png',
     'char_right': 'assets/images/char_right.png',
     'logo': 'assets/images/logo.png',
+    'map_editor_logo': 'assets/images/map_editor_logo.png',
     'cannon_arrow': 'assets/images/cannon_arrow.png',
     'font': None,
     'bgm': 'assets/sounds/main_theme_01.wav',
@@ -27,6 +29,7 @@ ASSET_PATHS = {
     # 'char_left': 왼쪽을 바라보는 캐릭터 이미지
     # 'char_right': 오른쪽을 바라보는 캐릭터 이미지
     # 'logo': 게임 로고 이미지
+    # 'map_editor_logo': 맵 에디터 로고 이미지
     # 'cannon_arrow': 십자형 화살표 이미지
     # 'font': None으로 설정 시 기본 폰트 사용, 필요 시 'assets/pixel_font.ttf' 등으로 변경 가능
     # 'bgm': 배경 음악 파일
