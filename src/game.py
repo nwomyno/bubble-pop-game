@@ -16,9 +16,11 @@ from game_settings import (
     END_SCREEN_DELAY,POP_SOUND_VOLUME,TAP_SOUND_VOLUME
 )
 from asset_paths import ASSET_PATHS
-from constants import BubbleColor,GameState
+from constants import BubbleColor,GameState,Itemtype
 from color_settings import (COLORS,
                             COLOR_MAP)
+
+from obstacle import Obstacle
 
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
@@ -75,6 +77,8 @@ def load_stage_from_csv(stage_index:int)->List[List[str]]:
                     cell=cell.strip()
                     if cell=='' or cell.upper()=='X':
                         map_row.append('.')
+                    elif cell.upper()=='N':
+                        map_row.append('N')
                     elif cell.upper() in COLORS:
                         map_row.append(cell.upper())
                     else:
@@ -188,10 +192,12 @@ class HexGrid:
         self.y_offset:int=y_offset
         self.map:List[List[str]]=[['.' for _ in range(cols)] for _ in range(rows)]
         self.bubble_list:List[Bubble]=[]
+        self.obs_list:List[Obstacle]=[]
 
     def load_from_stage(self,stage_map:List[List[str]])->None:
         self.map=[row[:] for row in stage_map]
         self.bubble_list=[]
+        self.obs_list=[]
         for r in range(self.rows):
             if r>=len(self.map):
                 break
@@ -200,12 +206,24 @@ class HexGrid:
                     ch=self.map[r][c]
                 else:
                     ch='.'
+
+                # 버블 파싱
                 if ch in COLORS:
                     x,y=self.get_cell_center(r,c)
                     b=Bubble(x,y,ch)
                     b.is_attached=True
                     b.set_grid_index(r,c)
                     self.bubble_list.append(b)
+                    continue
+
+                # 장애물 파싱
+                if ch=='N':
+                    obsx,obsy=self.get_cell_center(r,c)
+                    # ob=Obstacle(obsx,obsy,BUBBLE_RADIUS)
+                    ob=Obstacle(obsx,obsy,BUBBLE_RADIUS,r,c)
+                    self.obs_list.append(ob)
+                    self.map[r][c]='N'
+                    continue
 
     def get_cell_center(self,r:int,c:int)->Tuple[int,int]:
         x=c*self.cell+self.cell//2+self.x_offset
@@ -349,11 +367,33 @@ class HexGrid:
         for b in self.bubble_list:
             b.draw(screen)
 
+        for ob in self.obs_list:
+            ob.draw(screen)
+
     def drop_wall(self)->None:
         self.wall_offset+=WALL_DROP_PIXELS
         for b in self.bubble_list:
             cx,cy=self.get_cell_center(b.row_idx,b.col_idx)
             b.x,b.y=cx,cy
+
+        for ob in self.obs_list:
+            cx,cy=self.get_cell_center(ob.row_idx,ob.col_idx)
+            ob.x,ob.y=cx,cy
+
+    def raise_wall(self)->None:
+        """벽을 한 칸 올려서(위로 이동) 여유 공간 늘림.
+        """
+        if self.wall_offset<=0:
+            # 더 이상 못 올리면
+            return
+        self.wall_offset=max(0,self.wall_offset-WALL_DROP_PIXELS)
+        for b in self.bubble_list:
+            cx,cy=self.get_cell_center(b.row_idx,b.col_idx)
+            b.x,b.y=cx,cy
+
+        for ob in self.obs_list:
+            cx,cy=self.get_cell_center(ob.row_idx,ob.col_idx)
+            ob.x,ob.y=cx,cy
 
 # ======== ScoreDisplay ========
 class ScoreDisplay:
@@ -455,6 +495,23 @@ class Game:
         self.fire_in_air:bool=False
         self.fire_count:int=0
         self.running:bool=True
+        # --- 특수 아이템 개수 설정 (임시: 테스트용) ---
+        self.item_swap_count:int=3
+            # 버블 스왑 아이템 개수
+        self.item_raise_count:int=3
+            # 벽 한 줄 올리기 아이템 개수
+        self.item_rainbow_count:int=3
+            # 무지개 버블 아이템 개수
+        # ------------------------------------------
+
+        # --- 요청 플래그만 추가 (임시: 테스트용) ---
+            # 플래그 방식 안 쓸 예정.
+
+        # FIXME: UI용 폰트
+        self.ui_font=pygame.font.SysFont('malgungothic',20)
+
+        # 아이템 버튼 초기화
+        self.init_item_buttons()
 
         self.load_stage(self.current_stage)
 
@@ -502,6 +559,91 @@ class Game:
         self.current_bubble.in_air=False
         self.next_bubble=self.create_bubble()
 
+    def init_item_buttons(self)->None:
+        btn_w,btn_h=80,80
+        padding=12
+        x=SCREEN_WIDTH-btn_w-40
+        y0=140
+
+        self.item_buttons=[
+            {'type':'swap',
+             'rect':pygame.Rect(x, y0 + 0*(btn_h+padding), btn_w, btn_h)},
+            {'type':'raise',
+             'rect': pygame.Rect(x, y0 + 1*(btn_h+padding), btn_w, btn_h)},
+            {'type':'rainbow',
+             'rect': pygame.Rect(x, y0 + 2*(btn_h+padding), btn_w, btn_h)},
+        ]
+
+        # 버튼 눌림 연출용 타이머 구현 (ms 단위로)
+        self.item_button_pressed_until={
+            'swap':0,
+            'raise':0,
+            'rainbow':0,
+        }
+
+    def handle_mouse_click(self,pos:Tuple[int,int])->None:
+        mx,my=pos
+        for btn in self.item_buttons:
+            if btn['rect'].collidepoint(mx,my):
+                self.handle_item_button_click(btn['type'])
+                break
+
+    def handle_item_button_click(self,item_type:str)->None:
+        # 아이템 수량 0개면 그냥 무시
+        if item_type=='swap' and self.item_swap_count<=0:
+            print("No SWAP items left.")
+            return
+        if item_type=='raise' and self.item_raise_count<=0:
+            print("No RAISE items left.")
+            return
+        if item_type=='rainbow' and self.item_rainbow_count<=0:
+            print("No RAINBOW items left.")
+            return
+
+        # 로직 적용 (UI 클릭하면 그 순간 바로 효과 반영함)
+        if item_type=='swap':
+            self.use_item_swap()
+        elif item_type=='raise':
+            self.use_item_raise()
+        elif item_type=='rainbow':
+            self.use_item_rainbow()
+
+        # 버튼 눌림 연출용 타이머 설정 (120ms 정도 유지)
+        now=pygame.time.get_ticks()
+        self.item_button_pressed_until[item_type]=now+120
+
+    def draw_item_buttons(self,screen:pygame.Surface)->None:
+        now=pygame.time.get_ticks()
+
+        for btn in self.item_buttons:
+            rect=btn['rect']
+            item_type=btn['type']
+            pressed=now<self.item_button_pressed_until[item_type]
+
+            # FIXME: 임시 버튼 배경 (<-- 나중에 PNG로 교체)
+            pygame.draw.rect(screen,(30,30,30),rect)
+            border_w=4 if pressed else 2
+            pygame.draw.rect(screen,(220,220,220),rect,border_w)
+
+            # 라벨 + 남은 개수
+            if item_type=='swap':
+                label='SWAP'
+                cnt=self.item_swap_count
+            elif item_type=='raise':
+                label='RAISE'
+                cnt=self.item_raise_count
+            else: # rainbow
+                label='RAIN'
+                cnt=self.item_rainbow_count
+
+            text_surf=self.ui_font.render(label,True,(255,255,255))
+            text_rect=text_surf.get_rect(center=(rect.centerx,rect.centery-14))
+            screen.blit(text_surf,text_rect)
+
+            cnt_surf=self.ui_font.render(str(cnt),True,(255,255,0))
+            cnt_rect=cnt_surf.get_rect(center=(rect.centerx,rect.centery+18))
+            screen.blit(cnt_surf,cnt_rect)
+
     def process_collision_and_attach(self)->bool:
         if self.current_bubble is None:
             return False
@@ -535,6 +677,24 @@ class Game:
                             self.tap_sound.play()
                         except:
                             pass
+                return True
+
+        # 장애물 충돌 검사
+        for ob in self.grid.obs_list:
+            dist=math.hypot(self.current_bubble.x-ob.x,self.current_bubble.y-ob.y)
+            if dist<=self.current_bubble.radius+ob.radius-2:
+                r,c=self.grid.nearest_grid_to_point(self.current_bubble.x,self.current_bubble.y)
+                self.grid.place_bubble(self.current_bubble,r,c)
+
+                # popped_count=self.pop_if_match(r,c)
+                # if popped_count==0:
+                # 장애물 위에 붙여도 매칭은 안 됨.
+                if hasattr(self,'tap_sound') and self.tap_sound:
+                    try:
+                        self.tap_sound.play()
+                    except:
+                        pass
+
                 return True
 
         return False
@@ -578,6 +738,20 @@ class Game:
                         self.fire_in_air=True
                         self.current_bubble.in_air=True
                         self.current_bubble.set_angle(self.cannon.angle)
+                # --- 특수 아이템 테스트용 단축키 ---
+                # FIXME: 키보드 1/2/3 --> 바로 아이템 사용
+                # FIXME: 마우스 왼쪽 버튼 클릭 --> handle_mouse_click() 호출
+                    # --> 버튼 클릭하면 아이템 사용
+                elif event.key==pygame.K_1:
+                    self.use_item_swap()
+                elif event.key==pygame.K_2:
+                    self.use_item_raise()
+                elif event.key==pygame.K_3:
+                    self.use_item_rainbow()
+
+            elif event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+                self.handle_mouse_click(event.pos)
+
 
         keys=pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
@@ -592,7 +766,10 @@ class Game:
                 self.fire_in_air=False
                 self.prepare_bubbles()
                 return
-
+            # --- 특수 아이템 플래그 처리(임시) ---
+            # 플래그 방식 안 쓸 예정이라 지움.
+            # AttributeError 터질 것 같음.
+            # --------------------------
             if self.process_collision_and_attach():
                 self.fire_count+=1
                 if self.fire_count>=LAUNCH_COOLDOWN:
@@ -632,6 +809,76 @@ class Game:
             return 0
         bottoms=[b.y+b.radius for b in self.grid.bubble_list]
         return int(max(bottoms))
+
+    def use_item_swap(self)->None:
+        """현재 버블과 다음 버블 스왑함.
+        """
+        if self.item_swap_count<=0:
+            print("No SWAP items left.")
+            return
+        if self.current_bubble is None or self.next_bubble is None:
+            print("Cannot swap: one of the bubbles is missing.")
+            return
+
+        # 색깔만 스왑: 필요하면 나중에 속성도 같이 스왑하면 될 것 같아요.
+        self.current_bubble.color,self.next_bubble.color=self.next_bubble.color,self.current_bubble.color
+
+        self.item_swap_count-=1
+        print(f"SWAP used. Remaining: {self.item_swap_count}")
+
+    def use_item_raise(self)->None:
+        """벽을 한 줄 올림.
+        """
+        if self.item_raise_count<=0:
+            print("No RAISE items left.")
+            return
+
+        # HexGrid에 위임
+        before_offset=self.grid.wall_offset
+        self.grid.raise_wall()
+
+        if self.grid.wall_offset==before_offset:
+            print("Cannot RAISE: wall is already at the top.")
+            return
+
+        self.item_raise_count-=1
+        print(f"RAISE used. Remaining: {self.item_raise_count}")
+
+    def best_color_for_rainbow(self)->str:
+        """현재 맵에서 가장 많이 남아있는 색 선택함.
+
+        Returns:
+            str: 가장 많이 등장한 색을 반환
+        """
+        color_count:dict[str,int]={}
+
+        for b in self.grid.bubble_list:
+            if b.color in COLORS:
+                color_count[b.color]=color_count.get(b.color,0)+1
+
+        # 맵 거의 비어있으면 그냥 랜덤 색
+        if not color_count:
+            return random.choice(list(COLORS.keys()))
+        # 가장 많이 등장한 색 반환함.
+        best=max(color_count,key=color_count.get)
+        return best
+
+    def use_item_rainbow(self)->None:
+        # FIXME: 일단 현재 버블을 상황에 맞는 색으로 바꾸게끔 구현 (B안 적용)
+        """현재 버블
+        """
+        if self.item_rainbow_count<=0:
+            print("No RAINBOW items left.")
+            return
+        if self.current_bubble is None:
+            print("Cannot use RAINBOW: current bubble is missing.")
+            return
+
+        best_color=self.best_color_for_rainbow()
+        self.current_bubble.color=best_color
+
+        self.item_rainbow_count-=1
+        print(f"RAINBOW used. Remaining: {self.item_rainbow_count}")
 
     def draw(self)->None:
         if self.background_image:
@@ -675,6 +922,10 @@ class Game:
             self.next_bubble.x,self.next_bubble.y=original_x,original_y
 
         self.score_ui.draw(self.screen,self.current_stage+1)
+
+        self.draw_item_buttons(self.screen)
+            # 아이템 버튼 그리기.
+
         pygame.display.flip()
 
     def show_stage_clear(self)->None:
