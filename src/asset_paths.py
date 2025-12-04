@@ -3,6 +3,7 @@ ASSET_PATHS = {
     'bubble_yellow': 'assets/images/bubble_yellow.png',
     'bubble_blue': 'assets/images/bubble_blue.png',
     'bubble_green': 'assets/images/bubble_green.png',
+    'bubble_obstacle': 'assets/images/obstacle.png',
     'background': 'assets/images/background.png',
     'editor_bg': 'assets/images/editor_bg.png',
     'char_left': 'assets/images/char_left.png',
@@ -10,6 +11,9 @@ ASSET_PATHS = {
     'logo': 'assets/images/logo.png',
     'map_editor_logo': 'assets/images/map_editor_logo.png',
     'cannon_arrow': 'assets/images/cannon_arrow.png',
+    'item_swap': 'assets/images/item_swap.png',
+    'item_raise': 'assets/images/item_raise.png',
+    'item_rainbow': 'assets/images/item_rainbow.png',
     'font': None,
     'bgm': 'assets/sounds/main_theme_01.wav',
     'pop_sounds': [

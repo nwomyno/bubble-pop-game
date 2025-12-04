@@ -17,7 +17,7 @@ import pygame
 from config import (
     SCREEN_WIDTH,SCREEN_HEIGHT,FPS,CELL_SIZE,BUBBLE_RADIUS,BUBBLE_SPEED,
     LAUNCH_COOLDOWN,WALL_DROP_PIXELS,MAP_ROWS,MAP_COLS,
-    NEXT_BUBBLE_X,NEXT_BUBBLE_Y_OFFSET
+    NEXT_BUBBLE_X,NEXT_BUBBLE_Y_OFFSET,SCALE
 )
     # 설정값 임포트
 from game_settings import (
@@ -432,10 +432,10 @@ class Game:
         self.clock:pygame.time.Clock=pygame.time.Clock()
 
         map_pixel_width=(MAP_COLS*CELL_SIZE)+(CELL_SIZE//2)
-        self.grid_x_offset=((SCREEN_WIDTH-map_pixel_width)//2)+25
-        self.grid_y_offset=30
+        self.grid_x_offset=((SCREEN_WIDTH-map_pixel_width)//2)+int(25*SCALE)
+        self.grid_y_offset=int(30*SCALE)
 
-        padding=10
+        padding=int(10*SCALE)
         game_area_w=map_pixel_width+(padding*2)
         game_area_h=SCREEN_HEIGHT-self.grid_y_offset
         game_area_x=(SCREEN_WIDTH-game_area_w)//2
@@ -447,7 +447,7 @@ class Game:
                                   self.grid_x_offset,self.grid_y_offset)
 
         cannon_x=self.game_rect.centerx
-        cannon_y=self.game_rect.bottom-170
+        cannon_y=self.game_rect.bottom-int(170*SCALE)
         self.cannon:Cannon=Cannon(cannon_x,cannon_y)
 
         self.game_over_line=self.cannon.y-CELL_SIZE*0.5
@@ -461,9 +461,10 @@ class Game:
             self.char_right=pygame.image.load(ASSET_PATHS['char_right']).convert_alpha()
             self.logo=pygame.image.load(ASSET_PATHS['logo']).convert_alpha()
 
-            self.char_left=pygame.transform.smoothscale(self.char_left,(313,546))
-            self.char_right=pygame.transform.smoothscale(self.char_right,(308,555))
-            self.logo=pygame.transform.smoothscale(self.logo,(176,176))
+            # SCALE 적용하여 화면 크기에 따라 조정
+            self.char_left=pygame.transform.smoothscale(self.char_left,(int(313*SCALE),int(546*SCALE)))
+            self.char_right=pygame.transform.smoothscale(self.char_right,(int(308*SCALE),int(555*SCALE)))
+            self.logo=pygame.transform.smoothscale(self.logo,(int(176*SCALE),int(176*SCALE)))
 
         except pygame.error as e:
             print(f"배경/UI 이미지 로드 실패: {e}")
@@ -520,6 +521,31 @@ class Game:
         # FIXME: UI용 폰트
         self.ui_font=pygame.font.SysFont('malgungothic',20)
 
+        # 아이템 이미지 로드 (SCALE 적용)
+        self.item_images = {}
+        item_size = (int(80*SCALE), int(80*SCALE))  # 버튼 크기에 맞춤
+        
+        try:
+            swap_img = pygame.image.load(ASSET_PATHS['item_swap']).convert_alpha()
+            self.item_images['swap'] = pygame.transform.smoothscale(swap_img, item_size)
+        except (pygame.error, FileNotFoundError) as e:
+            print(f"SWAP 아이템 이미지 로드 실패: {e}")
+            self.item_images['swap'] = None
+        
+        try:
+            raise_img = pygame.image.load(ASSET_PATHS['item_raise']).convert_alpha()
+            self.item_images['raise'] = pygame.transform.smoothscale(raise_img, item_size)
+        except (pygame.error, FileNotFoundError) as e:
+            print(f"RAISE 아이템 이미지 로드 실패: {e}")
+            self.item_images['raise'] = None
+        
+        try:
+            rainbow_img = pygame.image.load(ASSET_PATHS['item_rainbow']).convert_alpha()
+            self.item_images['rainbow'] = pygame.transform.smoothscale(rainbow_img, item_size)
+        except (pygame.error, FileNotFoundError) as e:
+            print(f"RAINBOW 아이템 이미지 로드 실패: {e}")
+            self.item_images['rainbow'] = None
+
         # 아이템 버튼 초기화
         self.init_item_buttons()
 
@@ -570,10 +596,11 @@ class Game:
         self.next_bubble=self.create_bubble()
 
     def init_item_buttons(self)->None:
-        btn_w,btn_h=80,80
-        padding=12
-        x=SCREEN_WIDTH-btn_w-40
-        y0=140
+        # SCALE 적용
+        btn_w, btn_h = int(80*SCALE), int(80*SCALE)
+        padding = int(12*SCALE)
+        x = SCREEN_WIDTH - btn_w - int(40*SCALE)
+        y0 = int(200*SCALE)  # 아이템 버튼 시작 Y 좌표 (아래로 이동)
 
         self.item_buttons=[
             {'type':'swap',
@@ -630,29 +657,58 @@ class Game:
             item_type=btn['type']
             pressed=now<self.item_button_pressed_until[item_type]
 
-            # FIXME: 임시 버튼 배경 (<-- 나중에 PNG로 교체)
-            pygame.draw.rect(screen,(30,30,30),rect)
-            border_w=4 if pressed else 2
-            pygame.draw.rect(screen,(220,220,220),rect,border_w)
+            # 아이템 이미지가 있으면 이미지 사용, 없으면 기존 방식
+            item_img = self.item_images.get(item_type)
+            
+            if item_img:
+                # 이미지 표시
+                screen.blit(item_img, rect)
+                
+                # 눌림 효과: 테두리 강조
+                border_color = (255, 255, 100) if pressed else (220, 220, 220)
+                border_w = 4 if pressed else 2
+                pygame.draw.rect(screen, border_color, rect, border_w)
+                
+                # 남은 개수 표시 (이미지 위에)
+                if item_type=='swap':
+                    cnt=self.item_swap_count
+                elif item_type=='raise':
+                    cnt=self.item_raise_count
+                else: # rainbow
+                    cnt=self.item_rainbow_count
+                
+                # 개수를 오른쪽 하단에 표시
+                cnt_surf=self.ui_font.render(str(cnt),True,(255,255,0))
+                cnt_rect=cnt_surf.get_rect(bottomright=(rect.right-5, rect.bottom-5))
+                
+                # 개수 배경 (가독성 향상)
+                bg_rect = cnt_rect.inflate(4, 4)
+                pygame.draw.rect(screen, (0, 0, 0), bg_rect)
+                screen.blit(cnt_surf, cnt_rect)
+            else:
+                # 이미지 없을 때 기존 방식 (텍스트)
+                pygame.draw.rect(screen,(30,30,30),rect)
+                border_w=4 if pressed else 2
+                pygame.draw.rect(screen,(220,220,220),rect,border_w)
 
-            # 라벨 + 남은 개수
-            if item_type=='swap':
-                label='SWAP'
-                cnt=self.item_swap_count
-            elif item_type=='raise':
-                label='RAISE'
-                cnt=self.item_raise_count
-            else: # rainbow
-                label='RAIN'
-                cnt=self.item_rainbow_count
+                # 라벨 + 남은 개수
+                if item_type=='swap':
+                    label='SWAP'
+                    cnt=self.item_swap_count
+                elif item_type=='raise':
+                    label='RAISE'
+                    cnt=self.item_raise_count
+                else: # rainbow
+                    label='RAIN'
+                    cnt=self.item_rainbow_count
 
-            text_surf=self.ui_font.render(label,True,(255,255,255))
-            text_rect=text_surf.get_rect(center=(rect.centerx,rect.centery-14))
-            screen.blit(text_surf,text_rect)
+                text_surf=self.ui_font.render(label,True,(255,255,255))
+                text_rect=text_surf.get_rect(center=(rect.centerx,rect.centery-14))
+                screen.blit(text_surf,text_rect)
 
-            cnt_surf=self.ui_font.render(str(cnt),True,(255,255,0))
-            cnt_rect=cnt_surf.get_rect(center=(rect.centerx,rect.centery+18))
-            screen.blit(cnt_surf,cnt_rect)
+                cnt_surf=self.ui_font.render(str(cnt),True,(255,255,0))
+                cnt_rect=cnt_surf.get_rect(center=(rect.centerx,rect.centery+18))
+                screen.blit(cnt_surf,cnt_rect)
 
     def process_collision_and_attach(self)->bool:
         if self.current_bubble is None:
@@ -696,14 +752,14 @@ class Game:
                 r,c=self.grid.nearest_grid_to_point(self.current_bubble.x,self.current_bubble.y)
                 self.grid.place_bubble(self.current_bubble,r,c)
 
-                # popped_count=self.pop_if_match(r,c)
-                # if popped_count==0:
-                # 장애물 위에 붙여도 매칭은 안 됨.
-                if hasattr(self,'tap_sound') and self.tap_sound:
-                    try:
-                        self.tap_sound.play()
-                    except:
-                        pass
+                # 장애물 근처에 붙어도 매칭 체크는 해야 함
+                popped_count=self.pop_if_match(r,c)
+                if popped_count==0:
+                    if hasattr(self,'tap_sound') and self.tap_sound:
+                        try:
+                            self.tap_sound.play()
+                        except:
+                            pass
 
                 return True
 
@@ -883,10 +939,17 @@ class Game:
             print("Cannot use RAINBOW: current bubble is missing.")
             return
 
-        best_color=self.best_color_for_rainbow()
-        self.current_bubble.color=best_color
+        # 변환 전 색상 저장
+        original_color = self.current_bubble.color
+        
+        # 최적 색상으로 변환
+        best_color = self.best_color_for_rainbow()
+        self.current_bubble.color = best_color
 
-        self.item_rainbow_count-=1
+        self.item_rainbow_count -= 1
+        
+        # 변환 전후 색상 출력
+        print(f"🌈 RAINBOW: {original_color} → {best_color}")
         print(f"RAINBOW used. Remaining: {self.item_rainbow_count}")
 
     def draw(self)->None:
@@ -907,28 +970,38 @@ class Game:
             self.current_bubble.draw(self.screen)
 
         if self.char_left:
-            self.screen.blit(self.char_left,(self.game_rect.left-419,SCREEN_HEIGHT-617))
+            char_left_x = self.game_rect.left - int(419*SCALE)
+            char_left_y = SCREEN_HEIGHT - int(617*SCALE)
+            self.screen.blit(self.char_left,(char_left_x, char_left_y))
         if self.char_right:
-            self.screen.blit(self.char_right,(self.game_rect.right+80,SCREEN_HEIGHT-617))
+            char_right_x = self.game_rect.right + int(80*SCALE)
+            char_right_y = SCREEN_HEIGHT - int(617*SCALE)
+            self.screen.blit(self.char_right,(char_right_x, char_right_y))
         if self.logo:
-            self.screen.blit(self.logo,(SCREEN_WIDTH-198,18))
+            logo_x = SCREEN_WIDTH - int(198*SCALE)
+            logo_y = int(18*SCALE)
+            self.screen.blit(self.logo,(logo_x, logo_y))
 
         if self.next_bubble:
-            next_x=NEXT_BUBBLE_X
-            next_y=SCREEN_HEIGHT+NEXT_BUBBLE_Y_OFFSET if NEXT_BUBBLE_Y_OFFSET<0 else NEXT_BUBBLE_Y_OFFSET
+            # NEXT 버블 위치를 config.py 설정값 사용 (스케일 적용)
+            next_x = int(NEXT_BUBBLE_X * SCALE)
+            next_y_offset = int(NEXT_BUBBLE_Y_OFFSET * SCALE) if NEXT_BUBBLE_Y_OFFSET < 0 else int(NEXT_BUBBLE_Y_OFFSET * SCALE)
+            next_y = SCREEN_HEIGHT + next_y_offset if NEXT_BUBBLE_Y_OFFSET < 0 else next_y_offset
 
             try:
-                font=pygame.font.Font(ASSET_PATHS['font'],40) if ASSET_PATHS['font'] else pygame.font.Font(None,40)
+                font_size = int(40 * SCALE)
+                font = pygame.font.Font(ASSET_PATHS['font'], font_size) if ASSET_PATHS['font'] else pygame.font.Font(None, font_size)
             except:
-                font=pygame.font.Font(None,40)
-            next_txt=font.render("NEXT",True,(0,0,0))
-            next_txt_rect=next_txt.get_rect(center=(next_x,next_y-70))
-            self.screen.blit(next_txt,next_txt_rect)
+                font = pygame.font.Font(None, int(40 * SCALE))
+            next_txt = font.render("NEXT", True, (0,0,0))
+            next_txt_offset_y = int(70 * SCALE)
+            next_txt_rect = next_txt.get_rect(center=(next_x, next_y - next_txt_offset_y))
+            self.screen.blit(next_txt, next_txt_rect)
 
-            original_x,original_y=self.next_bubble.x,self.next_bubble.y
-            self.next_bubble.x,self.next_bubble.y=next_x,next_y
+            original_x, original_y = self.next_bubble.x, self.next_bubble.y
+            self.next_bubble.x, self.next_bubble.y = next_x, next_y
             self.next_bubble.draw(self.screen)
-            self.next_bubble.x,self.next_bubble.y=original_x,original_y
+            self.next_bubble.x, self.next_bubble.y = original_x, original_y
 
         self.score_ui.draw(self.screen,self.current_stage+1)
 
