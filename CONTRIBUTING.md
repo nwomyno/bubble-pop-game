@@ -34,10 +34,79 @@ git commit -m "docs: README 설치 방법 추가"
 ```
 bubble-pop-game/  
 ├── src/  
-│   ├── main.py  
-│   └── skeleton.py  
+│   ├── main.py              # 게임 엔트리 포인트
+│   ├── game.py              # 게임 메인 로직
+│   ├── map_editor.py        # 맵 에디터
+│   ├── scene_manager.py     # Scene 관리
+│   ├── scene_factory.py     # Scene 팩토리
+│   ├── *_scene.py          # 각종 Scene 파일
+│   ├── obstacle.py          # 게임 오브젝트
+│   ├── config.py            # 설정 파일
+│   ├── asset_paths.py       # 에셋 경로
+│   └── *.py                # 기타 모듈
 ├── assets/  
-│   ├── images/     # 이미지 파일  
-│   └── sounds/     # 사운드 파일 (예정)  
-└── docs/           # 문서 (예정)
+│   ├── images/              # 이미지 에셋
+│   │   ├── bubble_*.png    # 버블 이미지
+│   │   ├── item_*.png      # 아이템 이미지
+│   │   └── *.png           # 기타 이미지
+│   ├── sounds/              # 사운드 파일
+│   └── map_data/            # 맵 데이터 (CSV)
+└── docs/                    # 문서
+```
+
+---
+
+## 개발 가이드라인
+
+### 1. 스케일링 시스템 사용
+
+모든 UI 요소는 `SCALE` 변수를 사용하여 화면 크기에 대응해야 합니다:
+
+```python
+from config import SCALE
+
+# 좋은 예
+button_width = int(100 * SCALE)
+offset_x = int(50 * SCALE)
+
+# 나쁜 예
+button_width = 100  # 하드코딩
+```
+
+### 2. 에셋 경로 관리
+
+새 에셋 추가 시 `asset_paths.py`에 등록:
+
+```python
+ASSET_PATHS = {
+    'new_asset': 'assets/images/new_asset.png',
+}
+```
+
+### 3. 맵 에디터 개발
+
+맵 파일은 CSV 형식으로 `assets/map_data/` 폴더에 저장:
+- 파일명: `stage{숫자}.csv`
+- 형식: 각 셀은 버블 코드 ('R', 'Y', 'B', 'G', 'N', '.')
+
+### 4. Scene 패턴
+
+새 Scene 추가 시:
+1. `*_scene.py` 파일 생성 및 `run()` 메서드 구현
+2. `scene_factory.py`에 Scene 등록
+3. 다른 Scene에서 Scene 이름으로 전환
+
+---
+
+## 코드 스타일
+
+- **들여쓰기**: 4칸 스페이스
+- **함수/변수명**: snake_case
+- **클래스명**: PascalCase
+- **상수**: UPPER_CASE
+- **타입 힌팅**: 가능한 경우 사용 권장
+
+```python
+def process_collision(bubble: Bubble, grid: HexGrid) -> bool:
+    pass
 ```
