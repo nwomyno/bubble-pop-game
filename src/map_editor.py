@@ -175,7 +175,13 @@ class MapEditor:
         self.bubble_images = {}
         # BUBBLE_RADIUS는 config에서 이미 스케일링 되어있으므로 그대로 사용
         target_size = BUBBLE_RADIUS * 2
-        color_key_map = {'R': 'bubble_red', 'Y': 'bubble_yellow', 'B': 'bubble_blue', 'G': 'bubble_green'}
+        color_key_map = {
+            'R': 'bubble_red', 
+            'Y': 'bubble_yellow', 
+            'B': 'bubble_blue', 
+            'G': 'bubble_green',
+            'N': 'bubble_obstacle'  # 장애물 버블 추가
+        }
         
         for code, asset_key in color_key_map.items():
             path = ASSET_PATHS.get(asset_key)
@@ -184,8 +190,12 @@ class MapEditor:
                 img = pygame.transform.smoothscale(img, (target_size, target_size))
                 self.bubble_images[code] = img
             else:
+                # 장애물은 회색 원으로 표시
                 surf = pygame.Surface((target_size, target_size), pygame.SRCALPHA)
-                pygame.draw.circle(surf, COLORS[code], (target_size//2, target_size//2), BUBBLE_RADIUS)
+                if code == 'N':
+                    pygame.draw.circle(surf, (128, 128, 128), (target_size//2, target_size//2), BUBBLE_RADIUS)
+                else:
+                    pygame.draw.circle(surf, COLORS[code], (target_size//2, target_size//2), BUBBLE_RADIUS)
                 self.bubble_images[code] = surf
 
         # --- 로고 이미지 로드 (크기 스케일링) ---
@@ -244,6 +254,7 @@ class MapEditor:
         self.scrollbar_rect = None
 
         self.save_msg_alpha = 0
+        self.running = True  # 에디터 실행 상태
 
         self.refresh_file_list()
         self.create_ui_elements()
@@ -267,10 +278,10 @@ class MapEditor:
         self.left_panel_rect = pygame.Rect(panel_x, panel_y_start, panel_width, panel_height)
 
         # ========================================
-        # 팔레트 버튼 (R, Y, B, G) (SCALE 적용)
+        # 팔레트 버튼 (R, Y, B, G, N) - 2x3 그리드 (SCALE 적용)
         # ========================================
         self.palette_buttons = []
-        colors_keys = ['R', 'Y', 'B', 'G']
+        colors_keys = ['R', 'Y', 'B', 'G', 'N']  # 장애물 'N' 추가
 
         # 패널 내부 상대 좌표
         start_x = self.left_panel_rect.x + int(107 * SCALE)
@@ -292,7 +303,7 @@ class MapEditor:
         # 지우개 버튼
         erase_w = int(140 * SCALE)
         erase_h = int(50 * SCALE)
-        erase_offset_y = int(300 * SCALE)
+        erase_offset_y = int(350 * SCALE)
         
         erase_btn = Button(self.left_panel_rect.centerx - (erase_w // 2), start_y + erase_offset_y, 
                            erase_w, erase_h, "ERASE",
@@ -335,6 +346,22 @@ class MapEditor:
 
         self.action_buttons.extend([btn_save, btn_new, btn_delete])
 
+        # ========================================
+        # 뒤로가기 버튼 (왼쪽 하단)
+        # ========================================
+        back_btn_width = int(140 * SCALE)
+        back_btn_height = int(50 * SCALE)
+        left_margin = int(34 * SCALE)
+        
+        btn_back = Button(
+            left_margin,
+            btn_y, back_btn_width, back_btn_height,
+            "BACK (ESC)", self.exit_editor,
+            color=(168, 212, 246)  # BTN_IDLE 색상과 동일
+        )
+        
+        self.action_buttons.append(btn_back)
+
     # ... (refresh_file_list, set_brush, load_map, save_current_map, create_new_map, delete_current_map, update, handle_input 함수는 기존 로직과 동일하여 생략하지 않고 그대로 둡니다. handle_input에서 스크롤바 영역 계산에 SCALE 적용 필요) ...
     
     def refresh_file_list(self):
@@ -349,6 +376,10 @@ class MapEditor:
 
     def set_brush(self, color_code):
         self.selected_brush = color_code
+    
+    def exit_editor(self):
+        """에디터 종료 (ESC 키와 동일한 효과)"""
+        self.running = False
 
     def load_map(self, filename):
         self.current_filename = filename
@@ -363,6 +394,7 @@ class MapEditor:
                     for c, cell in enumerate(row):
                         if c >= MAP_COLS: break
                         val = cell.strip().upper()
+                        # 'N' (장애물)도 허용
                         if val in self.bubble_images or val == 'X':
                             self.grid.map[r][c] = val
                         else:
@@ -482,6 +514,11 @@ class MapEditor:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            
+            # ESC 키로 에디터 종료 (메뉴로 돌아가기)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
 
             if event.type == pygame.MOUSEWHEEL:
                 if len(self.file_list) > self.max_visible_files:
@@ -675,7 +712,7 @@ class MapEditor:
             self.screen.blit(msg_surf, rect)
 
     def run(self):
-        while True:
+        while self.running:
             self.update()
             self.handle_input()
             self.draw_ui()

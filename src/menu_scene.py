@@ -6,7 +6,7 @@ class MenuScene:
         self.manager=manager
         self.font=pygame.font.Font(None,80)
         self.small=pygame.font.Font(None,40)
-        self.opts=['Start Game','Quit']
+        self.opts=['Start Game','Map Editor','Quit']
         self.idx=0
 
     def run(self):
@@ -26,6 +26,8 @@ class MenuScene:
                     elif e.key in (pygame.K_RETURN,pygame.K_SPACE):
                         if self.idx==0:
                             return 'game'
+                        elif self.idx==1:
+                            return 'editor'
                         else:
                             return None
 
